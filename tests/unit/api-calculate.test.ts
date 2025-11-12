@@ -225,5 +225,27 @@ describe('POST /api/calculate', () => {
 		expect(body.success).toBe(false);
 		expect(body.code).toBe('RATE_LIMIT_ERROR');
 	});
+
+	it('should set cache control headers to prevent caching', async () => {
+		vi.mocked(mockRequest.json).mockResolvedValue(mockCalculationRequest);
+		vi.mocked(processCalculation).mockResolvedValue(mockSuccessResponse);
+
+		const setHeadersSpy = vi.fn();
+		const eventWithSpy = {
+			...mockEvent,
+			setHeaders: setHeadersSpy
+		} as unknown as RequestEvent;
+
+		await POST(eventWithSpy);
+
+		// Verify cache headers are set
+		expect(setHeadersSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				'Cache-Control': 'no-store, no-cache, must-revalidate',
+				'Pragma': 'no-cache',
+				'Expires': '0'
+			})
+		);
+	});
 });
 

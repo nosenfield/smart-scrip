@@ -139,6 +139,14 @@ export const POST: RequestHandler = async ({ request, getClientAddress, setHeade
 
 		const statusCode = result.success ? 200 : 400;
 
+		// Set cache headers to prevent caching of calculation results
+		// Calculation results are dynamic and should not be cached
+		setHeaders({
+			'Cache-Control': 'no-store, no-cache, must-revalidate',
+			'Pragma': 'no-cache',
+			'Expires': '0'
+		});
+
 		return json(result, { status: statusCode });
 	} catch (error) {
 		// This catch block should only handle unexpected errors from processCalculation
