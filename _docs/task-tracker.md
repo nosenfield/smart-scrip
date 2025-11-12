@@ -166,3 +166,32 @@ This tracker should be updated as tasks are completed. Mark tasks with appropria
 - Use `[~]` if task is intentionally skipped
 
 Refer to individual phase documents for detailed task requirements and acceptance criteria.
+
+---
+
+## Known Issues & Technical Debt
+
+### Docker Configuration - Adapter Mismatch
+**Status:** Deferred to Phase 6
+**Severity:** Medium
+**Created:** 2025-11-11
+
+**Issue:** Current Dockerfile uses `@sveltejs/adapter-auto` which doesn't provide optimal Cloud Run deployment. Architecture specifies adapter-node for production.
+
+**Current State:**
+- Dockerfile works with adapter-auto output (`.svelte-kit/output/`)
+- Image size: 376MB (exceeds 200MB target)
+- Includes dev dependencies (not pruned for production)
+
+**Impact:**
+- Larger image size than optimal
+- May require changes for Cloud Run deployment
+
+**Resolution Plan:**
+Address in Phase 6 (task 6.1 - Configure SvelteKit for Cloud Run):
+1. Migrate to `@sveltejs/adapter-node`
+2. Update Dockerfile paths to use `build/` output
+3. Restore production dependency pruning
+4. Optimize for Cloud Run PORT handling
+
+**Workaround:** Current setup works for development. Production deployment deferred to Phase 6.
