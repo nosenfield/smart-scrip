@@ -1,16 +1,17 @@
 # Active Context: smart-scrip
 
-**Last Updated**: 2025-11-11
+**Last Updated**: 2025-11-12
 
 ## Current Focus
 
 ### What We're Working On Right Now
-Phase 1 COMPLETE! All 9 tasks finished. Ready to begin Phase 2: Business Logic & Calculations.
+Phase 2 COMPLETE! All 5 tasks finished. Ready to begin Phase 3: API Routes & Orchestration.
 
 ### Current Phase
 **Phase 0: Project Setup & Foundation** - ✅ COMPLETE (12/12 tasks)
 **Phase 1: Core Services & API Integration** - ✅ COMPLETE (9/9 tasks)
-**Phase 2: Business Logic & Calculations** - READY TO START (0/5 tasks)
+**Phase 2: Business Logic & Calculations** - ✅ COMPLETE (5/5 tasks)
+**Phase 3: API Routes & Orchestration** - READY TO START (0/6 tasks)
 
 ### Active Decisions
 - **Use $env/static/private for environment variables**: Safer than dynamic imports, prevents client-side exposure
@@ -19,27 +20,29 @@ Phase 1 COMPLETE! All 9 tasks finished. Ready to begin Phase 2: Business Logic &
 - **Lazy initialization for OpenAI client**: API key validation happens at first use, not module load time, for better testability
 - **Silent failure for Cloud Logging errors in production**: Prevents log noise while maintaining development debugging
 - **Factory pattern for logger initialization**: Makes environment detection testable, avoids module-level evaluation issues
+- **Greedy algorithm for package optimization**: Minimizes package count, not waste. Simpler for MVP, documented trade-off for future enhancement
+- **Overfill tracked at result level**: Total waste is more meaningful than per-package distribution. Simpler API, clearer semantics
+- **Scoring algorithm: waste × 100 + packageCount**: Ensures waste dominates while package count serves as tiebreaker
 
 ---
 
 ## Recent Changes
 
 ### Last 3 Significant Changes
-1. Phase 1 COMPLETE - Service integration tests implemented (25 tests), all services tested - 2025-11-11
-2. External API types created - TypeScript interfaces for OpenAI, RxNorm, FDA NDC responses - 2025-11-11
-3. All Phase 1 services implemented - OpenAI, RxNorm, FDA NDC services with comprehensive error handling - 2025-11-11
+1. Phase 2 COMPLETE - All business logic modules implemented (validation, calculator, matcher, optimizer) - 2025-11-12
+2. Business logic integration tests created - 13 integration tests covering end-to-end workflows - 2025-11-12
+3. Package optimizer implemented with configurable criteria - Greedy algorithm with scoring, 15 unit tests - 2025-11-12
 
 ---
 
 ## Next Steps
 
 ### Immediate (Next Session)
-- [ ] Begin Phase 2 Task 2.1: Implement Input Validation Logic
-- [ ] Begin Phase 2 Task 2.2: Create Quantity Calculator
-- [ ] Begin Phase 2 Task 2.3: Implement NDC Matcher
+- [ ] Begin Phase 3 Task 3.1: Create Calculation Orchestrator
+- [ ] Begin Phase 3 Task 3.2: Create API Calculate Endpoint
 
 ### Near-Term (This Week)
-- [ ] Complete Phase 2: Input validation, quantity calculator, NDC matcher, package optimizer
+- [ ] Complete Phase 3: API routes and orchestration
 
 ---
 
@@ -57,11 +60,11 @@ None - Phase 0 complete and ready to proceed.
 
 ## Key Files Currently Modified
 
-Phase 1 foundation complete - All utility services (1.1-1.5) implemented and tested.
+Phase 2 complete - All business logic modules (2.1-2.5) implemented and tested.
 
 **Recent commits:**
-- `1da9fbd` - fix: address code review issues for OpenAI service (Task 1.5)
-- `eebc0e6` - fix: address code review issues for logger utility (Task 1.4)
-- `1c69e96` - feat: implement OpenAI service with input validation (Task 1.5)
-- `94d73ad` - feat: implement Cloud Logging utility (Task 1.4)
-- `e2c083f` - feat: implement error handling utility with custom error classes (Task 1.3)
+- `643990a` - feat: create business logic integration tests (Task 2.5)
+- `1c89e6c` - fix: remove incorrect overfill distribution in multi-package results
+- `47f424f` - fix: address critical bugs in package optimizer
+- `256008e` - feat: implement NDC matcher (Task 2.3)
+- `9cc31a2` - feat: implement input validation logic (Task 2.1)
