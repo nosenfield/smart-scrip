@@ -1,10 +1,24 @@
-# One-Shot Task Command
+# One-Shot Task Command (Single Task)
 
-Execute a complete task from planning through commit in a single uninterrupted flow.
+Execute a **single task** from planning through commit in one flow.
 
-**Use this when**: You trust the AI to execute without intermediate approvals and want maximum velocity.
+**Scope**: This command executes ONE task (e.g., `/task 1.3`). For executing entire phases, use `/one-shot Phase N`.
 
-**Use plan → implement → commit when**: You need to review plans or implementation steps before proceeding.
+**Use this when**:
+- Executing a well-defined single task
+- You trust the AI to execute without intermediate approvals
+- You want velocity for one specific task
+
+**Use `/one-shot Phase N` when**:
+- Executing all remaining tasks in a phase
+- Want to complete an entire phase autonomously
+
+**Use plan → implement → commit when**:
+- You need to review plans or implementation steps before proceeding
+- Requirements are ambiguous or risky
+
+## Mode
+This command can operate in **manual** or **autonomous** mode depending on context. For autonomous behavior details, see @autonomous-execution.mdc.
 
 ---
 

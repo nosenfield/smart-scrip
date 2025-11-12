@@ -2,6 +2,18 @@
 
 You are helping the user create a git commit with proper staging and commit message formatting. This command requires approval from pre-commit hooks before finalizing the commit.
 
+## Relationship to Autonomous Mode
+
+This command documents the **manual commit workflow**. When executing in autonomous mode (via `/one-shot` or `/batch`), the agent follows the same workflow but handles Claude review iterations automatically. See @autonomous-execution.mdc for autonomous behavior.
+
+**Key differences:**
+- **Manual mode** (this command): User reviews Claude feedback and decides on changes
+- **Autonomous mode**: Agent analyzes Claude feedback and decides automatically (following smart decision rules)
+
+For the complete commit approval workflow including AUTO_ACCEPT usage, see @autonomous-execution.mdc § "Commit Approval Workflow".
+
+---
+
 ## Important Rules
 
 1. **NEVER use `git add .` or `git add -A`** - Always stage files with explicit paths

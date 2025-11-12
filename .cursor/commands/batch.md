@@ -6,6 +6,17 @@ Execute multiple tasks sequentially in a single uninterrupted flow.
 
 **Example**: `/batch 0.3 0.4 1.1 1.2` or `/batch phase-0` or `/batch 0.3-0.4`
 
+## Execution Mode
+
+This command operates in **autonomous mode**. The agent will:
+- Execute tasks continuously without pausing between completions
+- Handle commit approval workflow automatically (see @autonomous-execution.mdc)
+- Only pause for errors, failures, ambiguity, or phase completion
+
+For complete autonomous mode rules and commit approval workflow, see @autonomous-execution.mdc.
+
+**Note**: The similar `/one-shot Phase N` command provides the same autonomous execution for entire phases.
+
 ---
 
 ## Workflow Overview
