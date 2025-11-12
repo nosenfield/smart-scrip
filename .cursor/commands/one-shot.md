@@ -406,6 +406,25 @@ Before proceeding to next task, verify:
 - [ ] Task tracker updated
 - [ ] Git working directory clean
 
+### ⚠️ CRITICAL: Reset Commit Approval State
+
+**Each new task starts with NO approval.**
+
+When moving to the next task:
+- ❌ **DO NOT** use `AUTO_ACCEPT=true` on the first commit attempt
+- ❌ **DO NOT** carry forward approval from previous task
+- ✅ **MUST** go through full Claude review cycle for first commit
+- ✅ **ONLY** use `AUTO_ACCEPT=true` after receiving approval for THIS task's commit
+
+**Example of CORRECT behavior:**
+```bash
+# Task 1 completed with AUTO_ACCEPT=true ✅
+# Now starting Task 2...
+
+# ❌ WRONG: AUTO_ACCEPT=true git commit -m "feat: task 2"
+# ✅ CORRECT: git commit -m "feat: task 2"  (let Claude review)
+```
+
 If ANY validation fails:
 ```
 ⚠️ INTER-TASK VALIDATION FAILED
@@ -694,16 +713,17 @@ Agent executes Phase 2 tasks (skipping Phase 1 if specified)
 2. ❌ Use `--no-verify` or `-n` flags
 3. ❌ Use `AUTO_ACCEPT=true` without approval
 4. ❌ Use `AUTO_ACCEPT=true` after making changes post-approval
-5. ❌ Commit failing tests
-6. ❌ Skip test writing
-7. ❌ Pause between successful task completions
-8. ❌ Wait for user acknowledgment between tasks
-9. ❌ Show plans to user (plan silently)
-10. ❌ Continue after 3 failed retry attempts
-11. ❌ Modify files outside task scope
-12. ❌ Auto-push to remote
-13. ❌ Ignore ambiguous requirements
-14. ❌ Update memory bank after EVERY task (only when needed)
+5. ❌ Use `AUTO_ACCEPT=true` on first commit of NEW task (carry forward approval from previous task)
+6. ❌ Commit failing tests
+7. ❌ Skip test writing
+8. ❌ Pause between successful task completions
+9. ❌ Wait for user acknowledgment between tasks
+10. ❌ Show plans to user (plan silently)
+11. ❌ Continue after 3 failed retry attempts
+12. ❌ Modify files outside task scope
+13. ❌ Auto-push to remote
+14. ❌ Ignore ambiguous requirements
+15. ❌ Update memory bank after EVERY task (only when needed)
 
 ---
 
