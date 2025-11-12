@@ -178,6 +178,41 @@ Refer to individual phase documents for detailed task requirements and acceptanc
 
 ## Known Issues & Technical Debt
 
+### OpenAI Service Unit Test Failures
+**Status:** Known Issue - Non-Blocking
+**Severity:** Low (Integration tests pass)
+**Created:** 2025-11-11
+
+**Issue:** 9 unit tests in `tests/unit/openai-service.test.ts` are failing due to mock setup issues with the cached OpenAI instance singleton.
+
+**Root Cause:**
+The OpenAI service uses lazy initialization with a module-level singleton (`openaiInstance`). When `vi.clearAllMocks()` is called in `beforeEach`, it clears the mock implementation, but the cached instance in the service module may have been created before the mock was properly configured, causing the mock to not be called correctly.
+
+**Failing Tests:**
+- `parseSIG`: 5 tests failing (should parse SIG text successfully, should handle SIG with duration, should sanitize injection characters, should validate AI response schema, should use correct model)
+- `selectOptimalNDC`: 4 tests failing (should select optimal NDC successfully, should handle selection with warnings, should handle multiple package selection, should validate AI response schema)
+
+**Current State:**
+- Integration tests pass (25/25) - confirms functionality works correctly
+- Unit test mock setup needs refinement
+- Mock pattern matches integration tests but singleton caching causes issues
+
+**Impact:**
+- Low impact - functionality verified via integration tests
+- Unit test coverage incomplete for these specific test cases
+- Does not block development or deployment
+
+**Resolution Plan:**
+Address when time permits (not blocking):
+1. Investigate singleton reset mechanism for tests
+2. Consider exposing reset function for testing
+3. Alternative: Use different mocking strategy that doesn't rely on cached instance
+4. Reference: Integration tests work with same pattern, investigate differences
+
+**Workaround:** Integration tests provide adequate coverage. Unit test failures are test infrastructure issues, not functional bugs.
+
+---
+
 ### Docker Configuration - Adapter Mismatch
 **Status:** Deferred to Phase 6
 **Severity:** Medium

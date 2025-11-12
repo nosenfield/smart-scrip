@@ -9,7 +9,7 @@ import type { ParsedSIG } from '$lib/types';
 // Set up environment variable BEFORE module imports (to avoid validation error)
 process.env.OPENAI_API_KEY = 'test-api-key';
 
-// Mock OpenAI
+// Mock OpenAI - create mock function in factory so it's shared
 vi.mock('openai', () => {
 	const mockCreate = vi.fn();
 
@@ -27,7 +27,6 @@ vi.mock('openai', () => {
 
 	return {
 		default: MockOpenAI,
-		// Export the mock so we can access it
 		__mockCreate: mockCreate
 	};
 });
@@ -49,22 +48,18 @@ vi.mock('$lib/server/utils/retry', () => ({
 import { parseSIG, selectOptimalNDC, type NDCSelectionInput } from '$lib/server/services/openai.service';
 import openaiModule from 'openai';
 
-// Store mock function reference - all instances share the same mock
-let mockCreateFn: ReturnType<typeof vi.fn>;
+// Helper to get OpenAI mock - create fresh instance to get mock reference
 const getMockCreate = () => {
-	if (!mockCreateFn) {
-		const instance = new openaiModule({ apiKey: 'test' });
-		mockCreateFn = instance.chat.completions.create as ReturnType<typeof vi.fn>;
-	}
-	return mockCreateFn;
+	const instance = new openaiModule({ apiKey: 'test' });
+	return instance.chat.completions.create as ReturnType<typeof vi.fn>;
 };
 
 describe('parseSIG', () => {
-	let mockCreateFn: ReturnType<typeof vi.fn>;
+	let mockCreate: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockCreateFn = getMockCreate();
+		mockCreate = getMockCreate();
 	});
 
 	it('should parse SIG text successfully', async () => {
@@ -76,7 +71,7 @@ describe('parseSIG', () => {
 			specialInstructions: 'Take with food'
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -94,7 +89,7 @@ describe('parseSIG', () => {
 		const result = await parseSIG('Take 1 tablet by mouth twice daily with food');
 
 		expect(result).toEqual(mockResponse);
-		expect(mockCreateFn).toHaveBeenCalledWith(
+		expect(mockCreate).toHaveBeenCalledWith(
 			expect.objectContaining({
 				model: expect.any(String),
 				messages: expect.arrayContaining([
@@ -119,7 +114,7 @@ describe('parseSIG', () => {
 			specialInstructions: 'For 7 days'
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -140,7 +135,7 @@ describe('parseSIG', () => {
 	});
 
 	it('should throw ExternalAPIError when OpenAI returns no content', async () => {
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -155,13 +150,13 @@ describe('parseSIG', () => {
 	});
 
 	it('should throw ExternalAPIError when OpenAI API call fails', async () => {
-		mockCreateFn.mockRejectedValueOnce(new Error('API Error'));
+		mockCreate.mockRejectedValueOnce(new Error('API Error'));
 
 		await expect(parseSIG('Take 1 tablet daily')).rejects.toThrow(ExternalAPIError);
 	});
 
 	it('should throw ExternalAPIError when response is invalid JSON', async () => {
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -202,7 +197,7 @@ describe('parseSIG', () => {
 			specialInstructions: ''
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -222,7 +217,7 @@ describe('parseSIG', () => {
 
 		expect(result).toEqual(mockResponse);
 		// Verify sanitized text was used in prompt (no script tags)
-		const callArgs = mockCreateFn.mock.calls[0][0];
+		const callArgs = mockCreate.mock.calls[0][0];
 		const promptContent = callArgs.messages[0].content;
 		expect(promptContent).not.toContain('<script>');
 		expect(promptContent).not.toContain('</script>');
@@ -230,7 +225,7 @@ describe('parseSIG', () => {
 
 	it('should validate AI response schema for parseSIG', async () => {
 		// Mock invalid response (missing required fields)
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -246,7 +241,7 @@ describe('parseSIG', () => {
 		});
 
 		await expect(parseSIG('Take 1 tablet daily')).rejects.toThrow(ExternalAPIError);
-		// Error message should mention schema validation
+		// Error message should mention schema validation - the service preserves the error message
 		const error = await parseSIG('Take 1 tablet daily').catch((e) => e);
 		expect(error.message).toContain('Invalid response schema');
 	});
@@ -260,7 +255,7 @@ describe('parseSIG', () => {
 			specialInstructions: ''
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -277,7 +272,7 @@ describe('parseSIG', () => {
 
 		await parseSIG('Take 1 tablet daily');
 
-		expect(mockCreateFn).toHaveBeenCalledWith(
+		expect(mockCreate).toHaveBeenCalledWith(
 			expect.objectContaining({
 				model: expect.any(String)
 			})
@@ -286,6 +281,7 @@ describe('parseSIG', () => {
 });
 
 describe('selectOptimalNDC', () => {
+	let mockCreate: ReturnType<typeof vi.fn>;
 	const mockInput: NDCSelectionInput = {
 		requiredQuantity: 30,
 		unit: 'tablet',
@@ -298,12 +294,12 @@ describe('selectOptimalNDC', () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockCreateFn = getMockCreate();
+		mockCreate = getMockCreate();
 	});
 
 	it('should validate AI response schema for selectOptimalNDC', async () => {
 		// Mock invalid response (missing required fields)
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -319,7 +315,7 @@ describe('selectOptimalNDC', () => {
 		});
 
 		await expect(selectOptimalNDC(mockInput)).rejects.toThrow(ExternalAPIError);
-		// Error message should mention schema validation
+		// Error message should mention schema validation - the service preserves the error message
 		const error = await selectOptimalNDC(mockInput).catch((e) => e);
 		expect(error.message).toContain('Invalid response schema');
 	});
@@ -337,7 +333,7 @@ describe('selectOptimalNDC', () => {
 			warnings: []
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -357,7 +353,7 @@ describe('selectOptimalNDC', () => {
 		expect(result.selectedNDCs).toEqual(mockResponse.selectedNDCs);
 		expect(result.reasoning).toBe(mockResponse.reasoning);
 		expect(result.warnings).toEqual(mockResponse.warnings);
-		expect(mockCreateFn).toHaveBeenCalledWith(
+		expect(mockCreate).toHaveBeenCalledWith(
 			expect.objectContaining({
 				model: expect.any(String),
 				messages: expect.arrayContaining([
@@ -391,7 +387,7 @@ describe('selectOptimalNDC', () => {
 			]
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -431,7 +427,7 @@ describe('selectOptimalNDC', () => {
 			]
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -457,7 +453,7 @@ describe('selectOptimalNDC', () => {
 	});
 
 	it('should throw ExternalAPIError when OpenAI returns no content', async () => {
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -481,13 +477,13 @@ describe('selectOptimalNDC', () => {
 	});
 
 	it('should throw ExternalAPIError when OpenAI API call fails', async () => {
-		mockCreateFn.mockRejectedValueOnce(new Error('API Error'));
+		mockCreate.mockRejectedValueOnce(new Error('API Error'));
 
 		await expect(selectOptimalNDC(mockInput)).rejects.toThrow(ExternalAPIError);
 	});
 
 	it('should throw ExternalAPIError when response is invalid JSON', async () => {
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -513,7 +509,7 @@ describe('selectOptimalNDC', () => {
 			warnings: []
 		};
 
-		mockCreateFn.mockResolvedValueOnce({
+		mockCreate.mockResolvedValueOnce({
 			choices: [
 				{
 					message: {
@@ -525,7 +521,7 @@ describe('selectOptimalNDC', () => {
 
 		await selectOptimalNDC(mockInput);
 
-		const callArgs = mockCreateFn.mock.calls[0][0];
+		const callArgs = mockCreate.mock.calls[0][0];
 		const promptContent = callArgs.messages[0].content;
 
 		expect(promptContent).toContain('12345-678-90');
