@@ -20,18 +20,38 @@ vi.mock('$lib/server/utils/logger', () => ({
 		error: vi.fn()
 	}
 }));
+vi.mock('$lib/server/middleware/rate-limiter', async () => {
+	const actual = await vi.importActual('$lib/server/middleware/rate-limiter');
+	return {
+		...actual,
+		checkRateLimit: vi.fn(() => ({
+			allowed: true,
+			remaining: 99,
+			resetTime: Date.now() + 60000
+		}))
+	};
+});
 
 describe('POST /api/calculate - Integration Tests', () => {
 	const createMockRequest = (body: CalculationRequest): Request => {
 		return {
-			json: async () => body
+			json: async () => body,
+			headers: {
+				get: vi.fn((name: string) => {
+					if (name === 'user-agent') return 'test-agent';
+					if (name === 'x-forwarded-for') return null;
+					return null;
+				})
+			}
 		} as unknown as Request;
 	};
 
 	const createMockEvent = (request: Request): RequestEvent => {
 		return {
-			request
-		} as RequestEvent;
+			request,
+			getClientAddress: () => '127.0.0.1',
+			setHeaders: vi.fn()
+		} as unknown as RequestEvent;
 	};
 
 	const mockSuccessResponse: CalculationResponse = {
@@ -184,6 +204,13 @@ describe('POST /api/calculate - Integration Tests', () => {
 		const mockRequest = {
 			json: async () => {
 				throw new SyntaxError('Unexpected token');
+			},
+			headers: {
+				get: vi.fn((name: string) => {
+					if (name === 'user-agent') return 'test-agent';
+					if (name === 'x-forwarded-for') return null;
+					return null;
+				})
 			}
 		} as unknown as Request;
 
