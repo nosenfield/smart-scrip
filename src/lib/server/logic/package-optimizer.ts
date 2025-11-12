@@ -229,11 +229,10 @@ function tryTwoPackageCombination(
 				}
 
 				const waste = total - requiredQuantity;
+				// Overfill is tracked at the result level (wasteQuantity), not per package
+				// Per-package overfill would be redundant and potentially confusing
 				return {
-					packages: packages.map((pkg) => ({
-						...pkg,
-						overfill: waste > 0 ? Math.round((waste * pkg.quantity) / total) : 0
-					})),
+					packages,
 					totalQuantity: total,
 					wasteQuantity: waste,
 					packageCount: count1 + count2,
