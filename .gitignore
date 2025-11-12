@@ -39,6 +39,7 @@ coverage/
 # Logs
 logs/
 *.log
+_logs/*
 
 # Temporary files
 tmp/
