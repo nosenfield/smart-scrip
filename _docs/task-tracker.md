@@ -19,13 +19,13 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Progress Summary
 
-**Overall:** 27/77 tasks complete (35.1%)
+**Overall:** 28/77 tasks complete (36.4%)
 
 **By Phase:**
 - Phase 0: 12/12 (100%) ✅ COMPLETE
 - Phase 1: 9/9 (100%) ✅ COMPLETE
 - Phase 2: 5/5 (100%) ✅ COMPLETE
-- Phase 3: 1/6 (16.7%)
+- Phase 3: 2/6 (33.3%)
 - Phase 4: 0/6 (0%)
 - Phase 5: 0/8 (0%)
 - Phase 6: 0/9 (0%)
@@ -87,10 +87,10 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Phase 3: API Routes & Orchestration
 
-**Progress:** 1/6 (16.7%)
+**Progress:** 2/6 (33.3%)
 
 - [x] 3.1 - Create Calculation Orchestrator
-- [ ] 3.2 - Create API Calculate Endpoint
+- [x] 3.2 - Create API Calculate Endpoint
 - [ ] 3.3 - Create API Integration Tests
 - [ ] 3.4 - Add Request Rate Limiting (Optional)
 - [ ] 3.5 - Add API Response Caching Headers
@@ -167,8 +167,9 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
   - Completed: NDC matcher (2.3) - 13 tests
   - Completed: Package optimizer (2.4) - 15 tests
   - Completed: Business logic integration tests (2.5) - 13 tests
-- Phase 3: IN PROGRESS (1/6 tasks)
-  - Completed: Calculation orchestrator (3.1) - 9 unit tests - 2025-11-12
+- Phase 3: IN PROGRESS (2/6 tasks)
+  - Completed: Calculation orchestrator (3.1) - 10 unit tests - 2025-11-12
+  - Completed: API calculate endpoint (3.2) - 6 unit tests - 2025-11-12
 
 ---
 
