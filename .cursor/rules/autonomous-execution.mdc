@@ -77,6 +77,29 @@ After all tasks complete:
 
 All commits go through the pre-commit hook which triggers Claude code review. The hook is interactive and will always block the first commit attempt, returning control to the Cursor agent for review and iteration.
 
+### Claude Review Context (What Gets Sent)
+
+The pre-commit hook sends a selective set of context files to Claude for an informed but unbiased review:
+
+**Essential Context (always included):**
+- `_docs/architecture.md` - Technical architecture and patterns
+- `_docs/best-practices.md` - Project coding standards
+- `.cursor/rules/base.mdc` - Core development principles
+
+**Conditional Context (included if relevant):**
+- `memory-bank/activeContext.md` - If changes relate to current work focus
+- `memory-bank/systemPatterns.md` - If changes involve architectural modifications
+
+**Task Context:**
+- If commit message contains `Task: X.Y`, that task's context is included
+
+**Excluded (to avoid bias):**
+- `memory-bank/progress.md` - Avoids completion pressure bias
+- `_docs/task-list.md` - Avoids scope creep suggestions
+- Personal notes or summaries
+
+This selective approach ensures Claude has enough context to provide informed feedback without being biased toward completion or scope expansion.
+
 ### The Approval Cycle
 
 ```
@@ -176,18 +199,76 @@ Agent action:
 ❌ Attempting to bypass review process
 ❌ Using `-n` or `--no-verify` flags (NEVER allowed)
 
-### Detecting Commit Approval
+### Standardized Claude Review Response Format
 
-Claude's approval may come in various formats. Look for these signals:
+The pre-commit hook requests Claude to provide reviews in a standardized format. The agent should parse this structured response to make decisions.
+
+**Expected Format:**
+```markdown
+## CODE REVIEW RESULT
+
+**Status**: [APPROVED / ISSUES FOUND]
+
+### Critical Issues
+[None / List of critical issues]
+
+### Non-Blocking Recommendations
+[None / List of recommendations]
+
+### Decision Summary
+[APPROVED] - Ready to commit [with/without recommendations]
+[ISSUES FOUND] - Must fix critical issues before commit
+```
+
+### Parsing Claude's Response
+
+**Step 1: Extract Status**
+
+Look for the line: `**Status**: [value]`
+
+- If `APPROVED` → Approval received
+- If `ISSUES FOUND` → Critical issues present
+
+**Step 2: Parse Critical Issues**
+
+Check the "Critical Issues" section:
+- If says "None" → No critical issues
+- If lists issues → Parse each issue (severity, location, description, fix)
+
+**Step 3: Parse Non-Blocking Recommendations**
+
+Check the "Non-Blocking Recommendations" section:
+- If says "None" → No recommendations
+- If lists recommendations → Parse each (type, suggestion, rationale)
+
+**Step 4: Make Decision**
+
+Based on parsed data:
+
+```
+IF Status = "APPROVED" AND Critical Issues = "None"
+  → Check Non-Blocking Recommendations
+    → IF "None": Use AUTO_ACCEPT=true immediately
+    → IF present: Evaluate significance
+      → IF significant AND in-scope: Implement → New approval
+      → IF not significant OR out-of-scope: Use AUTO_ACCEPT=true
+
+IF Status = "ISSUES FOUND"
+  → Fix all critical issues
+  → Request NEW approval
+  → DO NOT use AUTO_ACCEPT
+```
+
+### Detecting Commit Approval (Legacy Format)
+
+If Claude does not use the standardized format (fallback), look for these signals:
 
 **Approval Indicators:**
-- "✅ APPROVED"
-- "Looks good"
+- "APPROVED" (case-insensitive)
 - "Ready to commit"
 - "No issues found"
 - "LGTM" (Looks Good To Me)
-- "Proceed with commit"
-- "All checks pass"
+- "Looks good"
 
 **NOT Approval:**
 - "Consider..."
@@ -196,26 +277,105 @@ Claude's approval may come in various formats. Look for these signals:
 - "Minor issue..." (WITHOUT explicit approval)
 
 **Issues Found (NOT Approval):**
-- "❌" or "⚠️" symbols
-- "Issue", "Bug", "Error", "Problem"
-- "Security vulnerability"
+- "ISSUES FOUND"
 - "Must fix", "Should fix", "Required"
+- "Security vulnerability"
+- "Bug", "Error", "Problem" (in context of critical issues)
 
-### Example Approval Flow
+### Example Approval Flow with Standardized Format
 
-**Iteration 1:**
+**Iteration 1: Issues Found**
 ```bash
 $ git commit -m "feat: implement user authentication"
-# Claude reviews, says: "Consider adding rate limiting"
-# Agent decides: rate limiting is significant → implement it
 ```
 
-**Iteration 2:**
+Claude responds:
+```markdown
+## CODE REVIEW RESULT
+
+**Status**: ISSUES FOUND
+
+### Critical Issues
+- Severity: HIGH
+  Location: src/auth/login.ts:42
+  Description: SQL injection vulnerability in login query
+  Fix: Use parameterized queries instead of string concatenation
+
+### Non-Blocking Recommendations
+- Type: Quality
+  Suggestion: Add JSDoc comments for public API functions
+  Rationale: Improves maintainability and IDE autocomplete
+
+### Decision Summary
+[ISSUES FOUND] - Must fix critical issues before commit
+```
+
+Agent action:
+- Parses: Status = "ISSUES FOUND"
+- Sees critical issue: SQL injection
+- Fixes SQL injection vulnerability
+- Requests NEW approval (no AUTO_ACCEPT)
+
+**Iteration 2: Approval with Recommendations**
 ```bash
 $ git commit -m "feat: implement user authentication"
-# Claude reviews, says: "✅ APPROVED - Looks good with rate limiting"
-# Agent sees approval + no issues → use AUTO_ACCEPT
 ```
+
+Claude responds:
+```markdown
+## CODE REVIEW RESULT
+
+**Status**: APPROVED
+
+### Critical Issues
+None
+
+### Non-Blocking Recommendations
+- Type: Security
+  Suggestion: Add rate limiting to login endpoint
+  Rationale: Prevents brute force attacks
+
+- Type: Documentation
+  Suggestion: Add JSDoc comments for authentication functions
+  Rationale: Improves code maintainability
+
+### Decision Summary
+[APPROVED] - Ready to commit with recommendations
+```
+
+Agent action:
+- Parses: Status = "APPROVED", Critical Issues = "None"
+- Evaluates recommendations:
+  - Rate limiting: Significant security improvement → Implement
+  - JSDoc: Quality improvement but not critical → Defer
+- Implements rate limiting
+- Requests NEW approval (changes made after approval)
+
+**Iteration 3: Approval without Issues**
+```bash
+$ git commit -m "feat: implement user authentication"
+```
+
+Claude responds:
+```markdown
+## CODE REVIEW RESULT
+
+**Status**: APPROVED
+
+### Critical Issues
+None
+
+### Non-Blocking Recommendations
+None
+
+### Decision Summary
+[APPROVED] - Ready to commit
+```
+
+Agent action:
+- Parses: Status = "APPROVED", Critical Issues = "None", Recommendations = "None"
+- No changes needed
+- Uses AUTO_ACCEPT=true immediately
 
 **Final Commit:**
 ```bash
