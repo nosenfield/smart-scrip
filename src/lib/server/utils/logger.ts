@@ -76,6 +76,8 @@ interface LoggerState {
 
 // Global logger state
 let loggerState: LoggerState | null = null;
+// Track if shutdown handlers are registered to prevent duplicate registrations
+let shutdownHandlersRegistered = false;
 
 /**
  * Initialize logger with optional configuration
@@ -86,6 +88,12 @@ let loggerState: LoggerState | null = null;
 export async function initializeLogger(config: LoggerConfig = {}): Promise<void> {
 	const isProduction = config.isProduction ?? process.env.NODE_ENV === 'production';
 	const logName = config.logName ?? 'ndc-calculator';
+
+	// Clean up previous initialization if switching from production to development mode
+	// This ensures handlers are properly removed when switching modes (e.g., in tests)
+	if (loggerState && shutdownHandlersRegistered && !isProduction) {
+		cleanupLogger();
+	}
 
 	let logging: Logging | null = null;
 	let log: ReturnType<Logging['log']> | null = null;
@@ -115,16 +123,21 @@ export async function initializeLogger(config: LoggerConfig = {}): Promise<void>
 		shutdownHandler: null
 	};
 
-	// Set up graceful shutdown handler
-	if (isProduction && log) {
+	// Set up graceful shutdown handler (only once)
+	if (isProduction && log && !shutdownHandlersRegistered) {
 		loggerState.shutdownHandler = async () => {
 			await flushLogs();
 		};
 
-		// Register shutdown handlers
-		process.on('SIGTERM', handleShutdown);
-		process.on('SIGINT', handleShutdown);
-		process.on('beforeExit', handleShutdown);
+		// Register shutdown handlers using once() to prevent duplicate registrations
+		// Note: once() ensures handlers are only called once, but we still track
+		// registration state to prevent multiple registrations
+		process.once('SIGTERM', handleShutdown);
+		process.once('SIGINT', handleShutdown);
+		process.once('beforeExit', handleShutdown);
+		
+		// Set flag AFTER registering handlers to ensure consistency
+		shutdownHandlersRegistered = true;
 	}
 }
 
@@ -135,6 +148,27 @@ async function handleShutdown(): Promise<void> {
 	if (loggerState?.shutdownHandler) {
 		await loggerState.shutdownHandler();
 	}
+}
+
+/**
+ * Cleanup logger and remove event handlers
+ * 
+ * Useful for testing scenarios where logger is reinitialized.
+ * In production, this should not be called as handlers persist for app lifetime.
+ * 
+ * Flushes pending logs before cleanup to ensure no logs are lost.
+ */
+export async function cleanupLogger(): Promise<void> {
+	// Flush pending logs before cleanup
+	await flushLogs();
+	
+	if (shutdownHandlersRegistered) {
+		process.removeListener('SIGTERM', handleShutdown);
+		process.removeListener('SIGINT', handleShutdown);
+		process.removeListener('beforeExit', handleShutdown);
+		shutdownHandlersRegistered = false;
+	}
+	loggerState = null;
 }
 
 /**
@@ -152,7 +186,11 @@ export async function flushLogs(): Promise<void> {
 		await Promise.allSettled(loggerState.pendingWrites);
 		loggerState.pendingWrites = [];
 	} catch (error) {
-		console.error('[Logger] Error flushing logs:', error);
+		// Only log flush errors in development to avoid noise in production
+		// Flush failures are non-critical - logs may be lost but app continues
+		if (!loggerState?.isProduction) {
+			console.error('[Logger] Error flushing logs:', error);
+		}
 	}
 }
 
@@ -172,26 +210,13 @@ export async function flushLogs(): Promise<void> {
  * // Returns: { user: 'john' } (password and function removed)
  * ```
  */
-export function sanitizeMetadata(metadata: Record<string, unknown>): LogMetadata {
-	const sanitized: LogMetadata = {};
+export function sanitizeMetadata(metadata: Record<string, unknown>): SerializableObject {
+	const sanitized: SerializableObject = {};
 
 	for (const [key, value] of Object.entries(metadata)) {
-		// Skip sensitive keys (exact matches or common patterns)
-		const lowerKey = key.toLowerCase();
-		if (
-			lowerKey === 'password' ||
-			lowerKey === 'secret' ||
-			lowerKey === 'token' ||
-			lowerKey === 'apikey' ||
-			lowerKey === 'api_key' ||
-			lowerKey === 'auth' ||
-			lowerKey === 'authorization' ||
-			lowerKey.includes('password') ||
-			lowerKey.includes('secret') ||
-			lowerKey.includes('token') ||
-			(lowerKey.includes('key') && (lowerKey.includes('api') || lowerKey.includes('auth'))) ||
-			lowerKey.includes('auth')
-		) {
+		// Skip sensitive keys (matches common sensitive patterns)
+		const sensitivePatterns = /password|secret|token|auth.*key|api.*key/i;
+		if (sensitivePatterns.test(key)) {
 			sanitized[key] = '[REDACTED]';
 			continue;
 		}
@@ -239,12 +264,15 @@ function sanitizeValue(value: unknown): SerializableValue {
 	}
 
 	if (Array.isArray(value)) {
-		return value.map(sanitizeValue).filter(isSerializable);
+		// Map and filter to ensure all elements are serializable
+		// Note: sanitizeValue already returns SerializableValue, but filter provides extra safety
+		return value.map(sanitizeValue).filter(isSerializable) as SerializableArray;
 	}
 
 	if (typeof value === 'object' && value !== null) {
 		// Recursively sanitize nested objects using sanitizeMetadata
-		return sanitizeMetadata(value as Record<string, unknown>) as SerializableObject;
+		// sanitizeMetadata returns SerializableObject with SerializableValue values
+		return sanitizeMetadata(value as Record<string, unknown>);
 	}
 
 	// Fallback: convert to string
@@ -262,19 +290,38 @@ function writeLog(level: LogLevel, message: string, metadata?: LogMetadata): voi
 	// Ensure logger is initialized
 	if (!loggerState) {
 		// Lazy initialization for backward compatibility
+		// Note: This uses NODE_ENV at call time, not module load time
+		// For testability, prefer calling initializeLogger() explicitly
 		const isProduction = process.env.NODE_ENV === 'production';
+		let logging: Logging | null = null;
+		let log: ReturnType<Logging['log']> | null = null;
+
+		if (isProduction) {
+			try {
+				logging = new Logging();
+				log = logging.log('ndc-calculator');
+			} catch (error) {
+				// Fallback to console if Cloud Logging initialization fails
+				console.error('[Logger] Failed to initialize Cloud Logging:', error);
+				console.warn('[Logger] Falling back to console logging');
+				logging = null;
+				log = null;
+			}
+		}
+
 		loggerState = {
-			logging: isProduction ? new Logging() : null,
-			log: isProduction ? new Logging().log('ndc-calculator') : null,
+			logging,
+			log,
 			isProduction,
 			pendingWrites: [],
 			shutdownHandler: null
 		};
 	}
 
-	// Sanitize metadata - convert to SerializableValue
-	const sanitizedMetadata = metadata
-		? (sanitizeMetadata(metadata) as SerializableObject)
+	// Sanitize metadata - sanitizeMetadata returns SerializableObject
+	// All values are guaranteed to be SerializableValue after sanitization
+	const sanitizedMetadata: SerializableObject | undefined = metadata
+		? sanitizeMetadata(metadata)
 		: undefined;
 
 	const logData = {
@@ -292,11 +339,22 @@ function writeLog(level: LogLevel, message: string, metadata?: LogMetadata): voi
 		const writePromise = loggerState.log
 			.write(entry)
 			.catch((error) => {
-				// Use logger's error method (not console.error) to avoid noise
-				// But we need to be careful not to create infinite loops
+				// In production, silently fail to avoid noise in Cloud Run logs
+				// Cloud Logging failures are non-critical and shouldn't break the app
+				// In development, log to console for debugging
+				// Note: For production monitoring, consider tracking failure metrics externally
 				if (loggerState && !loggerState.isProduction) {
 					console.error(`[Cloud Logging Error] Failed to write log:`, error);
 					console.error(`[${level}] ${message}`, sanitizedMetadata || '');
+				}
+			})
+			.finally(() => {
+				// Always clean up promise from buffer to prevent memory leak (success or failure)
+				if (loggerState) {
+					const index = loggerState.pendingWrites.indexOf(writePromise);
+					if (index > -1) {
+						loggerState.pendingWrites.splice(index, 1);
+					}
 				}
 			})
 			.then(() => undefined); // Ensure it returns Promise<void>
