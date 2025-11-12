@@ -73,12 +73,12 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Phase 2: Business Logic & Calculations
 
-**Progress:** 3/5 (60%)
+**Progress:** 4/5 (80%)
 
 - [x] 2.1 - Implement Input Validation Logic
 - [x] 2.2 - Create Quantity Calculator
 - [x] 2.3 - Implement NDC Matcher
-- [ ] 2.4 - Create Package Optimizer
+- [x] 2.4 - Create Package Optimizer
 - [ ] 2.5 - Create Business Logic Integration Tests
 
 **Reference:** [phase-2-logic.md](task-list/phase-2-logic.md)
