@@ -45,7 +45,7 @@ vi.mock('$lib/server/utils/retry', () => ({
 }));
 
 // Import after mocks are set up
-import { parseSIG, selectOptimalNDC, type NDCSelectionInput } from '$lib/server/services/openai.service';
+import { parseSIG, selectOptimalNDC, resetOpenAIClient, type NDCSelectionInput } from '$lib/server/services/openai.service';
 import openaiModule from 'openai';
 
 // Helper to get OpenAI mock - create fresh instance to get mock reference

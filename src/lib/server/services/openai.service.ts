@@ -33,6 +33,14 @@ function getOpenAIClient(): OpenAI {
 	return openaiInstance;
 }
 
+/**
+ * Reset the OpenAI client instance (for testing only)
+ * @internal
+ */
+export function resetOpenAIClient(): void {
+	openaiInstance = null;
+}
+
 // Model configuration - defaults to gpt-4o-mini for cost efficiency
 // Temperature: 0.1 for parsing (consistent), 0.3 for selection (slight creativity)
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
