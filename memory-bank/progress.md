@@ -18,9 +18,9 @@
 - [x] 0.11 - Initialize Git Workflow
 - [x] 0.12 - Create README Documentation
 
-### Phase 1: Core Services & API Integration - NOT STARTED
-- [ ] 1.1 - Create HTTP Client Utility
-- [ ] 1.2 - Implement Retry Logic Utility
+### Phase 1: Core Services & API Integration - IN PROGRESS
+- [x] 1.1 - Create HTTP Client Utility
+- [x] 1.2 - Implement Retry Logic Utility
 - [ ] 1.3 - Create Error Handling Utility
 - [ ] 1.4 - Setup Cloud Logging Utility
 - [ ] 1.5 - Implement OpenAI Service
@@ -42,14 +42,16 @@
 - ✅ Type definitions - Base types for Prescription, NDC, API
 - ✅ Configuration constants - Timeouts, retry config, validation rules
 - ✅ Git workflow - Clean commit history with proper hooks
+- ✅ HTTP Client Utility - APIClient with timeout, error handling, comprehensive tests
+- ✅ Retry Logic Utility - Exponential backoff with configurable delays, custom retry conditions, 13 tests
 
 ---
 
 ## What's Next
 
 ### Priority 1 (Immediate - Next Session)
-- [ ] Create HTTP client utility with timeout and error handling
-- [ ] Implement retry logic with exponential backoff
+- [x] Create HTTP client utility with timeout and error handling
+- [x] Implement retry logic with exponential backoff
 - [ ] Create standardized error handling utility
 
 ### Priority 2 (This Week)

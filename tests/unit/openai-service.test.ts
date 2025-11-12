@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ExternalAPIError, ValidationError } from '$lib/server/utils/error-handler';
 import type { ParsedSIG } from '$lib/types';
 
+// Set up environment variable BEFORE module imports (to avoid validation error)
+process.env.OPENAI_API_KEY = 'test-api-key';
+
 // Mock OpenAI
 vi.mock('openai', () => {
 	const mockCreate = vi.fn();
@@ -37,9 +40,9 @@ vi.mock('$lib/server/utils/logger', () => ({
 	}
 }));
 
-// Mock retry logic
+// Mock retry logic - properly handle async functions
 vi.mock('$lib/server/utils/retry', () => ({
-	retryWithBackoff: vi.fn((fn) => fn())
+	retryWithBackoff: vi.fn(async (fn) => await fn())
 }));
 
 // Import after mocks are set up
@@ -80,7 +83,12 @@ describe('parseSIG', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		const result = await parseSIG('Take 1 tablet by mouth twice daily with food');
@@ -118,7 +126,12 @@ describe('parseSIG', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		const result = await parseSIG('Take 2 capsules three times daily for 7 days');
@@ -166,6 +179,78 @@ describe('parseSIG', () => {
 		await expect(parseSIG('   ')).rejects.toThrow(ValidationError);
 	});
 
+	it('should throw ValidationError for null SIG text', async () => {
+		await expect(parseSIG(null as any)).rejects.toThrow(ValidationError);
+	});
+
+	it('should throw ValidationError for undefined SIG text', async () => {
+		await expect(parseSIG(undefined as any)).rejects.toThrow(ValidationError);
+	});
+
+	it('should throw ValidationError for non-string SIG text', async () => {
+		await expect(parseSIG(123 as any)).rejects.toThrow(ValidationError);
+		await expect(parseSIG({} as any)).rejects.toThrow(ValidationError);
+		await expect(parseSIG([] as any)).rejects.toThrow(ValidationError);
+	});
+
+	it('should sanitize injection characters from SIG text', async () => {
+		const mockResponse: ParsedSIG = {
+			dose: 1,
+			unit: 'tablet',
+			frequency: 1,
+			route: 'oral',
+			specialInstructions: ''
+		};
+
+		mockCreateFn.mockResolvedValueOnce({
+			choices: [
+				{
+					message: {
+						content: JSON.stringify(mockResponse)
+					}
+				}
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
+		});
+
+		// Test that < and > characters are removed
+		const result = await parseSIG('Take 1 tablet <script>alert("xss")</script> daily');
+
+		expect(result).toEqual(mockResponse);
+		// Verify sanitized text was used in prompt (no script tags)
+		const callArgs = mockCreateFn.mock.calls[0][0];
+		const promptContent = callArgs.messages[0].content;
+		expect(promptContent).not.toContain('<script>');
+		expect(promptContent).not.toContain('</script>');
+	});
+
+	it('should validate AI response schema for parseSIG', async () => {
+		// Mock invalid response (missing required fields)
+		mockCreateFn.mockResolvedValueOnce({
+			choices: [
+				{
+					message: {
+						content: JSON.stringify({ dose: 1 }) // Missing unit, frequency, route
+					}
+				}
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
+		});
+
+		await expect(parseSIG('Take 1 tablet daily')).rejects.toThrow(ExternalAPIError);
+		// Error message should mention schema validation
+		const error = await parseSIG('Take 1 tablet daily').catch((e) => e);
+		expect(error.message).toContain('Invalid response schema');
+	});
+
 	it('should use correct model from environment or default', async () => {
 		const mockResponse: ParsedSIG = {
 			dose: 1,
@@ -182,7 +267,12 @@ describe('parseSIG', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		await parseSIG('Take 1 tablet daily');
@@ -211,6 +301,29 @@ describe('selectOptimalNDC', () => {
 		mockCreateFn = getMockCreate();
 	});
 
+	it('should validate AI response schema for selectOptimalNDC', async () => {
+		// Mock invalid response (missing required fields)
+		mockCreateFn.mockResolvedValueOnce({
+			choices: [
+				{
+					message: {
+						content: JSON.stringify({ selectedNDCs: [] }) // Missing reasoning, warnings
+					}
+				}
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
+		});
+
+		await expect(selectOptimalNDC(mockInput)).rejects.toThrow(ExternalAPIError);
+		// Error message should mention schema validation
+		const error = await selectOptimalNDC(mockInput).catch((e) => e);
+		expect(error.message).toContain('Invalid response schema');
+	});
+
 	it('should select optimal NDC successfully', async () => {
 		const mockResponse = {
 			selectedNDCs: [
@@ -231,12 +344,19 @@ describe('selectOptimalNDC', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		const result = await selectOptimalNDC(mockInput);
 
-		expect(result).toEqual(mockResponse);
+		expect(result.selectedNDCs).toEqual(mockResponse.selectedNDCs);
+		expect(result.reasoning).toBe(mockResponse.reasoning);
+		expect(result.warnings).toEqual(mockResponse.warnings);
 		expect(mockCreateFn).toHaveBeenCalledWith(
 			expect.objectContaining({
 				model: expect.any(String),
@@ -278,7 +398,12 @@ describe('selectOptimalNDC', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		const result = await selectOptimalNDC(mockInput);
@@ -313,7 +438,12 @@ describe('selectOptimalNDC', () => {
 						content: JSON.stringify(mockResponse)
 					}
 				}
-			]
+			],
+			usage: {
+				prompt_tokens: 10,
+				completion_tokens: 5,
+				total_tokens: 15
+			}
 		});
 
 		const result = await selectOptimalNDC({

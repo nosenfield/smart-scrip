@@ -14,13 +14,27 @@ import { ExternalAPIError, ValidationError } from '$lib/server/utils/error-handl
 import { logger } from '$lib/server/utils/logger';
 import { retryWithBackoff } from '$lib/server/utils/retry';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
-	timeout: API_TIMEOUTS.OPENAI
-});
+// Lazy initialization function for OpenAI client
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+	if (!openaiInstance) {
+		const apiKey = process.env.OPENAI_API_KEY;
+		if (!apiKey) {
+			throw new Error('OPENAI_API_KEY environment variable not set');
+		}
+
+		openaiInstance = new OpenAI({
+			apiKey,
+			timeout: API_TIMEOUTS.OPENAI
+		});
+	}
+
+	return openaiInstance;
+}
 
 // Model configuration - defaults to gpt-4o-mini for cost efficiency
+// Temperature: 0.1 for parsing (consistent), 0.3 for selection (slight creativity)
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 /**
@@ -54,6 +68,74 @@ export interface NDCSelectionResult {
 }
 
 /**
+ * Type guard to validate ParsedSIG structure
+ * 
+ * @param obj - Object to validate
+ * @returns True if object matches ParsedSIG schema
+ */
+function isValidParsedSIG(obj: unknown): obj is ParsedSIG {
+	return (
+		typeof obj === 'object' &&
+		obj !== null &&
+		'dose' in obj &&
+		typeof (obj as { dose: unknown }).dose === 'number' &&
+		'unit' in obj &&
+		typeof (obj as { unit: unknown }).unit === 'string' &&
+		'frequency' in obj &&
+		typeof (obj as { frequency: unknown }).frequency === 'number' &&
+		'route' in obj &&
+		typeof (obj as { route: unknown }).route === 'string'
+	);
+}
+
+/**
+ * Type guard to validate NDCSelectionResult structure
+ * 
+ * @param obj - Object to validate
+ * @returns True if object matches NDCSelectionResult schema
+ */
+function isValidNDCSelectionResult(obj: unknown): obj is NDCSelectionResult {
+	if (typeof obj !== 'object' || obj === null) {
+		return false;
+	}
+
+	const result = obj as Record<string, unknown>;
+
+	// Check selectedNDCs array
+	if (!('selectedNDCs' in result) || !Array.isArray(result.selectedNDCs)) {
+		return false;
+	}
+
+	// Check reasoning
+	if (!('reasoning' in result) || typeof result.reasoning !== 'string') {
+		return false;
+	}
+
+	// Check warnings array
+	if (!('warnings' in result) || !Array.isArray(result.warnings)) {
+		return false;
+	}
+
+	// Validate selectedNDCs structure
+	for (const ndc of result.selectedNDCs) {
+		if (
+			typeof ndc !== 'object' ||
+			ndc === null ||
+			!('ndc' in ndc) ||
+			typeof ndc.ndc !== 'string' ||
+			!('packageCount' in ndc) ||
+			typeof ndc.packageCount !== 'number' ||
+			!('totalQuantity' in ndc) ||
+			typeof ndc.totalQuantity !== 'number'
+		) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
  * Parses prescription SIG (directions) text into structured data
  * 
  * @param sigText - The prescription directions text (e.g., "Take 1 tablet by mouth twice daily")
@@ -72,15 +154,14 @@ export async function parseSIG(sigText: string): Promise<ParsedSIG> {
 		throw new ValidationError('SIG text is required');
 	}
 
-	const sanitized = sigText.trim();
+	// Sanitize input: remove potential injection characters and enforce length
+	const sanitized = sigText
+		.trim()
+		.replace(/[<>]/g, '') // Remove potential HTML/XML injection characters
+		.slice(0, INPUT_CONSTRAINTS.SIG_MAX_LENGTH);
+
 	if (sanitized.length === 0) {
 		throw new ValidationError('SIG text cannot be empty');
-	}
-
-	if (sanitized.length > INPUT_CONSTRAINTS.SIG_MAX_LENGTH) {
-		throw new ValidationError(
-			`SIG text exceeds maximum length of ${INPUT_CONSTRAINTS.SIG_MAX_LENGTH} characters`
-		);
 	}
 
 	logger.info('Parsing SIG with OpenAI', { sigText: sanitized });
@@ -101,19 +182,39 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanations)
 	try {
 		const result = await retryWithBackoff(
 			async () => {
-				const completion = await openai.chat.completions.create({
+				const completion = await getOpenAIClient().chat.completions.create({
 					model: MODEL,
 					messages: [{ role: 'user', content: prompt }],
 					response_format: { type: 'json_object' },
-					temperature: 0.1 // Low temperature for consistent parsing
+					temperature: 0.1 // Low temperature (0.1) for consistent, deterministic parsing
 				});
+
+				// Log token usage for cost monitoring
+				if (completion.usage) {
+					logger.debug('OpenAI token usage', {
+						promptTokens: completion.usage.prompt_tokens,
+						completionTokens: completion.usage.completion_tokens,
+						totalTokens: completion.usage.total_tokens
+					});
+				}
 
 				const content = completion.choices[0]?.message?.content;
 				if (!content) {
 					throw new Error('No response from OpenAI');
 				}
 
-				return JSON.parse(content) as ParsedSIG;
+				let parsed: unknown;
+				try {
+					parsed = JSON.parse(content);
+				} catch (parseError) {
+					throw new Error('Invalid JSON response from OpenAI');
+				}
+
+				if (!isValidParsedSIG(parsed)) {
+					throw new Error('Invalid response schema from OpenAI');
+				}
+
+				return parsed;
 			},
 			{ maxRetries: 2 }
 		);
@@ -125,7 +226,12 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanations)
 		if (error instanceof ValidationError) {
 			throw error;
 		}
-		throw new ExternalAPIError('Failed to parse prescription directions');
+		// Preserve schema validation error messages
+		const errorMessage =
+			error instanceof Error && error.message.includes('Invalid response schema')
+				? error.message
+				: 'Failed to parse prescription directions';
+		throw new ExternalAPIError(errorMessage);
 	}
 }
 
@@ -165,6 +271,12 @@ export async function selectOptimalNDC(input: NDCSelectionInput): Promise<NDCSel
 		throw new ValidationError('Unit is required');
 	}
 
+	// Sanitize unit to prevent injection
+	const sanitizedUnit = input.unit.trim().replace(/[<>]/g, '');
+	if (sanitizedUnit.length === 0) {
+		throw new ValidationError('Unit cannot be empty after sanitization');
+	}
+
 	if (!Array.isArray(input.availableNDCs)) {
 		throw new ValidationError('Available NDCs must be an array');
 	}
@@ -177,7 +289,7 @@ export async function selectOptimalNDC(input: NDCSelectionInput): Promise<NDCSel
 
 	const prompt = `You are a pharmacy AI assistant selecting the optimal NDC package(s) for a prescription.
 
-Required quantity: ${input.requiredQuantity} ${input.unit}
+Required quantity: ${input.requiredQuantity} ${sanitizedUnit}
 Available NDCs: ${JSON.stringify(input.availableNDCs, null, 2)}
 
 Select the best option(s) considering:
@@ -208,19 +320,39 @@ Return ONLY valid JSON matching this schema:
 	try {
 		const result = await retryWithBackoff(
 			async () => {
-				const completion = await openai.chat.completions.create({
+				const completion = await getOpenAIClient().chat.completions.create({
 					model: MODEL,
 					messages: [{ role: 'user', content: prompt }],
 					response_format: { type: 'json_object' },
-					temperature: 0.3 // Slightly higher for selection logic
+					temperature: 0.3 // Moderate temperature (0.3) for selection logic requiring slight creativity
 				});
+
+				// Log token usage for cost monitoring
+				if (completion.usage) {
+					logger.debug('OpenAI token usage', {
+						promptTokens: completion.usage.prompt_tokens,
+						completionTokens: completion.usage.completion_tokens,
+						totalTokens: completion.usage.total_tokens
+					});
+				}
 
 				const content = completion.choices[0]?.message?.content;
 				if (!content) {
 					throw new Error('No response from OpenAI');
 				}
 
-				return JSON.parse(content) as NDCSelectionResult;
+				let parsed: unknown;
+				try {
+					parsed = JSON.parse(content);
+				} catch (parseError) {
+					throw new Error('Invalid JSON response from OpenAI');
+				}
+
+				if (!isValidNDCSelectionResult(parsed)) {
+					throw new Error('Invalid response schema from OpenAI');
+				}
+
+				return parsed;
 			},
 			{ maxRetries: 2 }
 		);
@@ -232,7 +364,12 @@ Return ONLY valid JSON matching this schema:
 		if (error instanceof ValidationError) {
 			throw error;
 		}
-		throw new ExternalAPIError('Failed to select optimal NDC');
+		// Preserve schema validation error messages
+		const errorMessage =
+			error instanceof Error && error.message.includes('Invalid response schema')
+				? error.message
+				: 'Failed to select optimal NDC';
+		throw new ExternalAPIError(errorMessage);
 	}
 }
 

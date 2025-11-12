@@ -1,7 +1,7 @@
----
+<!-- --- -->
 description: Standard development workflow and task execution
 globs: **/*
----
+<!-- --- -->
 
 # Development Workflow
 

@@ -6,6 +6,7 @@
  */
 
 import { ERROR_CODES } from '$lib/config/constants';
+import { logger } from './logger';
 
 /**
  * Base application error class
@@ -106,8 +107,8 @@ export function handleAPIError(error: unknown): ErrorResponse {
 		};
 	}
 
-	// Log unexpected errors for debugging
-	console.error('Unexpected error:', error);
+	// Log unexpected errors for debugging using logger utility
+	logger.error('Unexpected error in handleAPIError', { error });
 
 	// Return generic error response for unknown errors
 	return {
