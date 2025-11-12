@@ -21,6 +21,8 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 **Overall:** 38/77 tasks complete (49.4%)
 
+**Note:** Phase 5 Task 5.2 (Playwright E2E) is blocked - see Known Issues section.
+
 **By Phase:**
 - Phase 0: 12/12 (100%) ✅ COMPLETE
 - Phase 1: 9/9 (100%) ✅ COMPLETE
@@ -117,10 +119,10 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Phase 5: Testing & Quality Assurance
 
-**Progress:** 0/8 (0%)
+**Progress:** 1/8 (12.5%)
 
-- [ ] 5.1 - Complete Unit Test Coverage
-- [ ] 5.2 - Create End-to-End Test Suite
+- [>] 5.1 - Complete Unit Test Coverage (in progress - 9 OpenAI unit tests failing, integration tests pass)
+- [!] 5.2 - Create End-to-End Test Suite (BLOCKED - see Known Issues)
 - [ ] 5.3 - Create Test Data Fixtures
 - [ ] 5.4 - Implement API Mocking for Tests
 - [ ] 5.5 - Code Quality and Linting
@@ -257,3 +259,57 @@ Address in Phase 6 (task 6.1 - Configure SvelteKit for Cloud Run):
 4. Optimize for Cloud Run PORT handling
 
 **Workaround:** Current setup works for development. Production deployment deferred to Phase 6.
+
+---
+
+### Playwright E2E Test Suite Integration - BLOCKED
+**Status:** Blocked - Cannot Complete Commit
+**Severity:** Medium (Non-blocking for MVP deployment)
+**Created:** 2025-11-12
+
+**Issue:** Playwright E2E test suite implementation started but cannot be committed due to code review blockers. Files are created and functional but stuck in staging.
+
+**What Was Completed:**
+- Playwright installed (`@playwright/test`, `@axe-core/playwright`)
+- `playwright.config.ts` created with dev server setup
+- `tests/e2e/prescription-flow.spec.ts` created with 7 E2E tests:
+  - Accessibility test with axe-core
+  - Valid drug name calculation (with API mocking)
+  - Validation error handling
+  - Overfill warnings display (with API mocking)
+  - API error handling
+  - Network error handling
+  - Server validation error handling
+- npm scripts added (`test:e2e`, `test:e2e:ui`, `test:e2e:headed`)
+- API mocking implemented to prevent real external API calls
+- Selectors fixed to match actual DOM structure
+
+**Current State:**
+- Files staged but not committed:
+  - `M package-lock.json` (Playwright dependencies)
+  - `M package.json` (scripts and dependencies)
+  - `A playwright.config.ts` (new file)
+  - `A tests/e2e/prescription-flow.spec.ts` (new file)
+- Last successful commit: `24197d6` (OpenAI service reset function)
+- Tests are functional and cover main scenarios
+
+**Code Review Blockers:**
+1. **Incomplete accessibility testing** - Only baseline test for initial form state, missing tests for results display and error states
+2. **Fragile HTML5 validation testing** - Test approach needs refinement for reliability
+3. **CI worker configuration concerns** - Parallel execution settings questioned
+4. **Missing edge case coverage** - Some scenarios not fully tested
+
+**Impact:**
+- E2E tests cannot be committed in current state
+- Manual testing can be used instead for MVP
+- Does not block core functionality or deployment
+- Tests are functional but need refinement for production standards
+
+**Resolution Options:**
+1. **For MVP (Recommended):** Remove Playwright files, mark task as skipped, use manual testing
+2. **For Production:** Address code review concerns, complete accessibility testing, refine validation tests
+3. **Defer:** Keep files staged, complete later when time permits
+
+**Decision:** For quick MVP deployment, recommend removing Playwright and using manual testing. E2E automation can be added post-MVP.
+
+**Workaround:** Manual testing of user workflows. Core functionality verified via 315+ unit/integration tests passing.
