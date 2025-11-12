@@ -6,3 +6,6 @@
 
 # Hide hooks
 .git/hooks/*
+
+# Hide validation logs
+_logs/*
