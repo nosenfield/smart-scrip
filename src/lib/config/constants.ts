@@ -1,0 +1,37 @@
+/**
+ * Application-wide constants and configuration values
+ */
+
+export const API_TIMEOUTS = {
+	OPENAI: 30000, // 30 seconds
+	RXNORM: 10000, // 10 seconds
+	FDA_NDC: 10000 // 10 seconds
+} as const;
+
+export const RETRY_CONFIG = {
+	MAX_RETRIES: 3,
+	BASE_DELAY: 1000, // 1 second
+	MAX_DELAY: 10000 // 10 seconds
+} as const;
+
+export const INPUT_CONSTRAINTS = {
+	DRUG_NAME_MAX_LENGTH: 200,
+	SIG_MAX_LENGTH: 500,
+	DAYS_SUPPLY_MIN: 1,
+	DAYS_SUPPLY_MAX: 365
+} as const;
+
+export const WARNING_TYPES = {
+	NO_EXACT_MATCH: 'NO_EXACT_MATCH',
+	INACTIVE_NDC: 'INACTIVE_NDC',
+	OVERFILL: 'OVERFILL',
+	UNDERFILL: 'UNDERFILL',
+	MULTIPLE_PACKAGES: 'MULTIPLE_PACKAGES'
+} as const;
+
+export const ERROR_CODES = {
+	VALIDATION_ERROR: 'VALIDATION_ERROR',
+	EXTERNAL_API_ERROR: 'EXTERNAL_API_ERROR',
+	BUSINESS_LOGIC_ERROR: 'BUSINESS_LOGIC_ERROR',
+	INTERNAL_ERROR: 'INTERNAL_ERROR'
+} as const;

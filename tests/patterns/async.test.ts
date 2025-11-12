@@ -3,7 +3,7 @@
  * For testing asynchronous operations, promises, and event-driven code
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Async Operations', () => {
   describe('Promise-based operations', () => {
@@ -54,14 +54,14 @@ describe('Async Operations', () => {
   });
 
   describe('Callback-based operations', () => {
-    it('should handle callback success', (done) => {
+    it('should handle callback success', (done: () => void) => {
       // Arrange
-      const callbackFunction = (callback) => {
+      const callbackFunction = (callback: (error: Error | null, result: string) => void) => {
         setTimeout(() => callback(null, 'result'), 100);
       };
 
       // Act
-      callbackFunction((error, result) => {
+      callbackFunction((error: Error | null, result: string) => {
         // Assert
         expect(error).toBeNull();
         expect(result).toBe('result');
@@ -69,9 +69,8 @@ describe('Async Operations', () => {
       });
     });
 
-    it('should handle callback errors', (done) => {
+    it.skip('should handle callback errors', () => {
       // Test error handling in callbacks
-      done();
     });
   });
 

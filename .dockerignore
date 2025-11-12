@@ -1,0 +1,16 @@
+node_modules
+.svelte-kit
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log
+.DS_Store
+tests
+_docs
+README.md
+.prettierrc
+.eslintrc.cjs
+vite.config.ts.timestamp-*
+vite.config.js.timestamp-*
+coverage

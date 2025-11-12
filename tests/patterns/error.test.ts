@@ -9,7 +9,7 @@ describe('Error Handling', () => {
   describe('Input Validation', () => {
     it('should reject null input', () => {
       // Arrange
-      const validateInput = (input) => {
+      const validateInput = (input: unknown) => {
         if (input === null) throw new Error('Input cannot be null');
         return input;
       };
@@ -72,7 +72,7 @@ describe('Error Handling', () => {
   describe('Error Messages', () => {
     it('should provide helpful error messages', () => {
       // Arrange
-      const validateEmail = (email) => {
+      const validateEmail = (email: string) => {
         if (!email.includes('@')) {
           throw new Error('Invalid email format. Email must contain "@" symbol.');
         }
