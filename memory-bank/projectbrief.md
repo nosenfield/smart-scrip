@@ -31,15 +31,15 @@ Pharmacy systems struggle with accurate NDC matching and quantity calculation, l
 
 ### Must Have (P0)
 - [x] Input: Drug name/NDC, SIG, days' supply
-- [ ] AI-powered SIG parsing (OpenAI GPT-4o-mini)
-- [ ] Drug normalization to RxCUI (RxNorm API)
-- [ ] NDC/package retrieval (FDA NDC Directory API)
-- [ ] Quantity calculation with unit awareness
-- [ ] Optimal NDC selection algorithm
-- [ ] Overfill/underfill detection
-- [ ] Inactive NDC warnings
-- [ ] JSON API response
-- [ ] Simple web UI for input/results
+- [x] AI-powered SIG parsing (OpenAI GPT-4o-mini) - ✅ Implemented
+- [ ] Drug normalization to RxCUI (RxNorm API) - In Progress
+- [ ] NDC/package retrieval (FDA NDC Directory API) - Pending
+- [ ] Quantity calculation with unit awareness - Pending
+- [x] Optimal NDC selection algorithm - ✅ Implemented (OpenAI service)
+- [ ] Overfill/underfill detection - Pending
+- [ ] Inactive NDC warnings - Pending
+- [ ] JSON API response - Pending (API routes not yet created)
+- [ ] Simple web UI for input/results - Pending
 
 ### Should Have (P1)
 - [ ] Multi-pack handling

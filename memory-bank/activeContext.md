@@ -5,40 +5,42 @@
 ## Current Focus
 
 ### What We're Working On Right Now
-Phase 1 Tasks 1.1-1.2 complete. Starting Task 1.3: Error Handling Utility.
+Phase 1 Tasks 1.1-1.5 complete. Ready to start Task 1.6: Implement RxNorm Service.
 
 ### Current Phase
 **Phase 0: Project Setup & Foundation** - ✅ COMPLETE (12/12 tasks)
-**Phase 1: Core Services & API Integration** - IN PROGRESS (2/9 tasks)
+**Phase 1: Core Services & API Integration** - IN PROGRESS (5/9 tasks - 56%)
 
 ### Active Decisions
 - **Use $env/static/private for environment variables**: Safer than dynamic imports, prevents client-side exposure
 - **Keep adapter-auto for development**: Defer adapter-node migration to Phase 6 for production deployment
 - **Document known issues in task-tracker.md**: Centralized tracking instead of separate files
+- **Lazy initialization for OpenAI client**: API key validation happens at first use, not module load time, for better testability
+- **Silent failure for Cloud Logging errors in production**: Prevents log noise while maintaining development debugging
+- **Factory pattern for logger initialization**: Makes environment detection testable, avoids module-level evaluation issues
 
 ---
 
 ## Recent Changes
 
 ### Last 3 Significant Changes
-1. Retry Logic Utility implemented - Exponential backoff with configurable delays, 13 tests - 2025-11-11
-2. HTTP Client Utility implemented - APIClient with timeout and error handling - 2025-11-11
-3. Phase 0 setup completed - Full SvelteKit TypeScript project initialized - 2025-11-11
+1. OpenAI Service implemented - SIG parsing and NDC selection with input validation, schema validation, sanitization - 2025-11-11
+2. Cloud Logging Utility implemented - Structured logging with graceful shutdown, metadata sanitization, testable factory pattern - 2025-11-11
+3. Error Handling Utility implemented - Custom error classes (ValidationError, ExternalAPIError, BusinessLogicError) with centralized handler - 2025-11-11
 
 ---
 
 ## Next Steps
 
 ### Immediate (Next Session)
-- [x] Begin Phase 1 Task 1.1: Create HTTP Client Utility
-- [x] Begin Phase 1 Task 1.2: Implement Retry Logic Utility
-- [ ] Begin Phase 1 Task 1.3: Create Error Handling Utility
+- [ ] Begin Phase 1 Task 1.6: Implement RxNorm Service
 
 ### Near-Term (This Week)
-- [ ] Complete all Phase 1 utility services (tasks 1.1-1.4)
-- [ ] Implement OpenAI service (task 1.5)
-- [ ] Implement RxNorm service (task 1.6)
-- [ ] Implement FDA NDC service (task 1.7)
+- [ ] Complete remaining Phase 1 services (tasks 1.6-1.9)
+  - [ ] Task 1.6: Implement RxNorm Service
+  - [ ] Task 1.7: Implement FDA NDC Service
+  - [ ] Task 1.8: Create External API Types
+  - [ ] Task 1.9: Create Service Integration Tests
 
 ---
 
@@ -48,18 +50,19 @@ Phase 1 Tasks 1.1-1.2 complete. Starting Task 1.3: Error Handling Utility.
 None - Phase 0 complete and ready to proceed.
 
 ### Questions to Resolve
-1. Should we implement request caching in HTTP client utility from the start?
-2. What retry strategy for external APIs? (exponential backoff parameters)
-3. How detailed should error logging be for external API failures?
+1. Should we implement request caching in HTTP client utility from the start? (Deferred - not needed for MVP)
+2. What retry strategy for external APIs? (RESOLVED: Exponential backoff with configurable delays, 2 retries default)
+3. How detailed should error logging be for external API failures? (RESOLVED: Structured logging with metadata sanitization, silent failures in production)
 
 ---
 
 ## Key Files Currently Modified
 
-Task 1.1 complete - HTTP client utility ready for use by services.
+Phase 1 foundation complete - All utility services (1.1-1.5) implemented and tested.
 
 **Recent commits:**
-- `1d738af` - feat: implement retry logic utility with exponential backoff (Task 1.2)
-- `c88791f` - feat: create HTTP client utility with timeout and error handling (Task 1.1)
-- `91ad729` - Add .npmrc with engine-strict enforcement
-- `cb9493c` - Document Dockerfile changes for adapter-auto testing
+- `1da9fbd` - fix: address code review issues for OpenAI service (Task 1.5)
+- `eebc0e6` - fix: address code review issues for logger utility (Task 1.4)
+- `1c69e96` - feat: implement OpenAI service with input validation (Task 1.5)
+- `94d73ad` - feat: implement Cloud Logging utility (Task 1.4)
+- `e2c083f` - feat: implement error handling utility with custom error classes (Task 1.3)
