@@ -28,7 +28,7 @@ export interface OptimizationResult {
 	totalQuantity: number;
 	wasteQuantity: number;
 	packageCount: number;
-	score: number; // Lower is better
+	score: number; // Lower is better. Infinity indicates a fallback solution (exceeds optimization criteria but meets basic requirement).
 }
 
 /**
@@ -99,11 +99,13 @@ export function optimizePackageSelection(
 	}
 
 	// Score each combination
+	// Waste is primary factor, package count is tiebreaker
+	// Use multiplier to ensure waste always dominates
+	const WASTE_SCORE_MULTIPLIER = 100; // Ensures waste prioritization over package count
 	const scoredCombinations = combinations.map((combo) => {
-		const wasteScore = minimizeWaste ? combo.wasteQuantity : 0;
-		const packageScore = minimizePackages ? combo.packageCount * 10 : 0;
-		// Only add package score if there's waste, otherwise exact matches should score 0
-		const score = wasteScore + (wasteScore > 0 ? packageScore : 0);
+		const wasteScore = minimizeWaste ? combo.wasteQuantity * WASTE_SCORE_MULTIPLIER : 0;
+		const packageScore = minimizePackages ? combo.packageCount : 0;
+		const score = wasteScore + packageScore;
 
 		return { ...combo, score };
 	});
@@ -183,7 +185,8 @@ function generateCombinations(
  * Tries to find a valid combination using two different package types
  * 
  * Tests combinations from 0-10 packages of each type to find matches
- * within the overfill tolerance.
+ * within the overfill tolerance. Limit of 10 is a performance vs. coverage
+ * tradeoff - covers most real-world scenarios while keeping complexity reasonable.
  * 
  * @param pkg1 - First package type
  * @param pkg2 - Second package type
@@ -198,8 +201,11 @@ function tryTwoPackageCombination(
 	maxOverfill: number
 ): OptimizationResult | null {
 	// Try different counts of each package
-	for (let count1 = 0; count1 <= 10; count1++) {
-		for (let count2 = 0; count2 <= 10; count2++) {
+	// Limit of 10 is a performance vs. coverage tradeoff
+	// Note: Same package type (pkg1.ndc === pkg2.ndc) is allowed for multi-package solutions
+	const MAX_PACKAGE_COUNT_TO_TEST = 10;
+	for (let count1 = 0; count1 <= MAX_PACKAGE_COUNT_TO_TEST; count1++) {
+		for (let count2 = 0; count2 <= MAX_PACKAGE_COUNT_TO_TEST; count2++) {
 			if (count1 === 0 && count2 === 0) continue;
 
 			const total = count1 * pkg1.packageSize + count2 * pkg2.packageSize;
@@ -222,10 +228,14 @@ function tryTwoPackageCombination(
 					});
 				}
 
+				const waste = total - requiredQuantity;
 				return {
-					packages,
+					packages: packages.map((pkg) => ({
+						...pkg,
+						overfill: waste > 0 ? Math.round((waste * pkg.quantity) / total) : 0
+					})),
 					totalQuantity: total,
-					wasteQuantity: total - requiredQuantity,
+					wasteQuantity: waste,
 					packageCount: count1 + count2,
 					score: 0
 				};

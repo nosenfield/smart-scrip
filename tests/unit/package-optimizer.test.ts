@@ -33,7 +33,9 @@ describe('optimizePackageSelection', () => {
 			expect(result.packages[0].ndc).toBe('12345-678-90');
 			expect(result.packages[0].packageCount).toBe(1);
 			expect(result.wasteQuantity).toBe(0);
-			expect(result.score).toBe(0);
+			// Exact match should have lowest score (waste=0, packageCount=1)
+			expect(result.score).toBeGreaterThanOrEqual(0);
+			expect(result.score).toBeLessThan(100); // Less than any solution with waste
 		});
 
 		it('should select package with acceptable overfill', () => {
@@ -74,6 +76,20 @@ describe('optimizePackageSelection', () => {
 			// Should use 1x60 + 1x30 = 90 (exact match, no waste)
 			expect(result.packages.length).toBeGreaterThanOrEqual(1);
 			expect(result.totalQuantity).toBeGreaterThanOrEqual(90);
+		});
+
+		it('should find multi-package solution using same NDC', () => {
+			const packages: NDCPackage[] = [
+				{ ndc: '12345-678-90', packageSize: 30, packageUnit: 'tablet', status: 'active' }
+			];
+
+			const result = optimizePackageSelection(60, packages);
+
+			// Should use 2x30 = 60 (exact match using same package type)
+			expect(result.packages.length).toBe(1);
+			expect(result.packages[0].packageCount).toBe(2);
+			expect(result.totalQuantity).toBe(60);
+			expect(result.wasteQuantity).toBe(0);
 		});
 
 		it('should minimize waste when minimizeWaste is true', () => {
@@ -160,7 +176,7 @@ describe('optimizePackageSelection', () => {
 
 			const result = optimizePackageSelection(10, packages, { maxOverfillPercent: 5 });
 
-			// Should fallback to simplest solution
+			// Should fallback to simplest solution (score = Infinity indicates fallback)
 			expect(result.packages.length).toBeGreaterThan(0);
 			expect(result.score).toBe(Infinity);
 		});
