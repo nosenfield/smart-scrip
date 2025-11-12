@@ -11,25 +11,12 @@ import { API_TIMEOUTS, INPUT_CONSTRAINTS } from '$lib/config/constants';
 import { ExternalAPIError, ValidationError } from '$lib/server/utils/error-handler';
 import { logger } from '$lib/server/utils/logger';
 import { retryWithBackoff } from '$lib/server/utils/retry';
+import type {
+	RxNormAPIResponse,
+	RxNormPropertiesResponse
+} from '$lib/types/external-api.types';
 
 const BASE_URL = process.env.RXNORM_API_BASE_URL || 'https://rxnav.nlm.nih.gov/REST';
-
-interface RxNormResponse {
-	idGroup?: {
-		rxnormId?: string[];
-	};
-}
-
-interface RxNormPropertiesResponse {
-	properties?: {
-		name?: string;
-		synonym?: string;
-		tty?: string;
-		language?: string;
-		suppress?: string;
-		umlscui?: string;
-	};
-}
 
 export interface DrugInfo {
 	rxcui: string;
@@ -70,7 +57,7 @@ export async function normalizeToRxCUI(drugName: string): Promise<DrugInfo> {
 		const rxcui = await retryWithBackoff(
 			async () => {
 				const url = `${BASE_URL}/rxcui.json?name=${encodeURIComponent(sanitized)}`;
-				const response = await apiClient.fetch<RxNormResponse>(url, {
+				const response = await apiClient.fetch<RxNormAPIResponse>(url, {
 					timeout: API_TIMEOUTS.RXNORM
 				});
 

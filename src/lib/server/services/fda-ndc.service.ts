@@ -8,28 +8,12 @@
 import { apiClient } from '$lib/server/utils/api-client';
 import { API_TIMEOUTS } from '$lib/config/constants';
 import type { NDCPackage } from '$lib/types';
+import type { FDANDCAPIResponse } from '$lib/types/external-api.types';
 import { ExternalAPIError, ValidationError } from '$lib/server/utils/error-handler';
 import { logger } from '$lib/server/utils/logger';
 import { retryWithBackoff } from '$lib/server/utils/retry';
 
 const BASE_URL = process.env.FDA_NDC_API_BASE_URL || 'https://api.fda.gov/drug/ndc.json';
-
-interface FDANDCResponse {
-	results?: Array<{
-		product_ndc: string;
-		generic_name: string;
-		brand_name?: string;
-		active_ingredients: Array<{
-			name: string;
-			strength: string;
-		}>;
-		packaging?: Array<{
-			package_ndc: string;
-			description: string;
-		}>;
-		marketing_status: string;
-	}>;
-}
 
 /**
  * Searches for NDC packages by RxCUI (RxNorm Concept Unique Identifier)
@@ -58,7 +42,7 @@ export async function searchNDCsByRxCUI(rxcui: string): Promise<NDCPackage[]> {
 		const result = await retryWithBackoff(
 			async () => {
 				const url = `${BASE_URL}?search=rxcui:${sanitized}&limit=100`;
-				const response = await apiClient.fetch<FDANDCResponse>(url, {
+				const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
 					timeout: API_TIMEOUTS.FDA_NDC
 				});
 
@@ -113,7 +97,7 @@ export async function validateNDC(ndc: string): Promise<NDCPackage | null> {
 
 	try {
 		const url = `${BASE_URL}?search=product_ndc:"${sanitized}"&limit=1`;
-		const response = await apiClient.fetch<FDANDCResponse>(url, {
+		const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
 			timeout: API_TIMEOUTS.FDA_NDC
 		});
 
@@ -138,7 +122,7 @@ export async function validateNDC(ndc: string): Promise<NDCPackage | null> {
  * @param results - FDA API response results array
  * @returns Array of NDCPackage objects
  */
-function parseNDCPackages(results: FDANDCResponse['results']): NDCPackage[] {
+function parseNDCPackages(results: FDANDCAPIResponse['results']): NDCPackage[] {
 	if (!results) return [];
 
 	const packages: NDCPackage[] = [];

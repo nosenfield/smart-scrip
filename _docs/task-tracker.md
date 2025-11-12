@@ -19,11 +19,11 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Progress Summary
 
-**Overall:** 7/72 tasks complete (9.7%)
+**Overall:** 8/72 tasks complete (11.1%)
 
 **By Phase:**
 - Phase 0: 0/12 (0%)
-- Phase 1: 7/9 (78%)
+- Phase 1: 8/9 (89%)
 - Phase 2: 0/5 (0%)
 - Phase 3: 0/6 (0%)
 - Phase 4: 0/6 (0%)
@@ -55,7 +55,7 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Phase 1: Core Services & API Integration
 
-**Progress:** 7/9 (78%)
+**Progress:** 8/9 (89%)
 
 - [x] 1.1 - Create HTTP Client Utility
 - [x] 1.2 - Implement Retry Logic Utility
@@ -64,7 +64,7 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 - [x] 1.5 - Implement OpenAI Service
 - [x] 1.6 - Implement RxNorm Service
 - [x] 1.7 - Implement FDA NDC Service
-- [ ] 1.8 - Create External API Types
+- [x] 1.8 - Create External API Types
 - [ ] 1.9 - Create Service Integration Tests
 
 **Reference:** [phase-1-services.md](task-list/phase-1-services.md)

@@ -4,21 +4,18 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ExternalAPIError, ValidationError } from '$lib/server/utils/error-handler';
-import type { NDCPackage } from '$lib/types';
 
-// Mock API client - create mock function in factory and export for test access
-vi.mock('$lib/server/utils/api-client', () => {
+// Mock API client - use vi.hoisted to create mock accessible in both mock factory and tests
+const { mockFetch } = vi.hoisted(() => {
 	const mockFetch = vi.fn();
-	return {
-		apiClient: {
-			fetch: mockFetch
-		},
-		__mockFetch: mockFetch // Export for test access
-	};
+	return { mockFetch };
 });
 
-// Import mock after setup
-import { __mockFetch as mockFetch } from '$lib/server/utils/api-client';
+vi.mock('$lib/server/utils/api-client', () => ({
+	apiClient: {
+		fetch: mockFetch
+	}
+}));
 
 // Mock logger
 vi.mock('$lib/server/utils/logger', () => ({
