@@ -10,7 +10,7 @@ Execute multiple tasks sequentially in a single uninterrupted flow.
 
 ## Workflow Overview
 
-This command performs repeated one-shot executions:
+This command performs repeated task executions:
 1. Execute task 1 (plan → implement → test → document → commit)
 2. Execute task 2 (plan → implement → test → document → commit)
 3. Execute task 3 (plan → implement → test → document → commit)
