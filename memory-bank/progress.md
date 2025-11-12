@@ -36,6 +36,14 @@
 - [x] 2.4 - Create Package Optimizer
 - [x] 2.5 - Create Business Logic Integration Tests
 
+### Phase 3: API Routes & Orchestration - ✅ COMPLETE
+- [x] 3.1 - Create Calculation Orchestrator
+- [x] 3.2 - Create API Calculate Endpoint
+- [x] 3.3 - Create API Integration Tests
+- [x] 3.4 - Add Request Rate Limiting (Optional)
+- [x] 3.5 - Add API Response Caching Headers
+- [x] 3.6 - Create API Documentation
+
 ---
 
 ## What's Working
@@ -63,16 +71,21 @@
 - ✅ NDC Matcher - findBestNDCMatches with exact match, closest match, optimal combination with 13 unit tests
 - ✅ Package Optimizer - optimizePackageSelection with configurable criteria and scoring algorithm with 15 unit tests
 - ✅ Business Logic Integration Tests - 13 integration tests covering end-to-end workflows
+- ✅ Calculation Orchestrator - processCalculation coordinates all services and business logic with 10 unit tests
+- ✅ API Calculate Endpoint - POST /api/calculate with rate limiting, caching headers, error handling with 9 unit tests
+- ✅ API Integration Tests - 8 integration tests covering end-to-end API workflows
+- ✅ Rate Limiting Middleware - In-memory rate limiting with sliding window (100 req/60s), 9 unit tests
+- ✅ API Documentation - Complete API specification with examples and error codes
 
 ---
 
 ## What's Next
 
 ### Priority 1 (Immediate - Next Session)
-- [ ] Begin Phase 3: API Routes & Orchestration (Task 3.1)
+- [ ] Begin Phase 4: Frontend UI (Task 4.1)
 
 ### Priority 2 (This Week)
-- [ ] Complete Phase 3: Calculation orchestrator, API endpoints, integration tests
+- [ ] Complete Phase 4: Frontend UI development
 
 ### Priority 3 (Next Phase)
 - [ ] Phase 4: Frontend UI development
@@ -129,6 +142,16 @@ None currently - fresh project.
 - All tests passing
 - Critical bugs identified and fixed through code review
 
+**Phase 3 Achievements:**
+- 6 tasks complete (3.1-3.6)
+- Calculation orchestrator coordinates all services and business logic
+- API endpoint with rate limiting and caching headers
+- Unit tests: 28 tests (10 orchestrator + 9 endpoint + 9 rate limiter)
+- Integration tests: 8 tests
+- API documentation complete
+- All tests passing
+- Rate limiting implemented (MVP - in-memory, single-instance only)
+
 **Key Decisions Made:**
 1. Use $env/static/private instead of $env/dynamic/private (security)
 2. Keep adapter-auto for now, migrate to adapter-node in Phase 6
@@ -137,6 +160,10 @@ None currently - fresh project.
 5. Lazy initialization for OpenAI client (testability)
 6. Factory pattern for logger (testable environment detection)
 7. Silent failure for Cloud Logging errors in production (prevent log noise)
+8. Rate limiting before request parsing (fail-fast principle, prevent DoS)
+9. AI-selected NDCs override deterministic matches when available
+10. X-Forwarded-For header handling for production Cloud Run deployment
+11. In-memory rate limiting acceptable for MVP, Redis required for production
 
 **Next Session Focus:**
-Begin Phase 2: Business Logic & Calculations (Task 2.1 - Input Validation Logic)
+Begin Phase 4: Frontend UI (Task 4.1 - Create Base UI Components)
