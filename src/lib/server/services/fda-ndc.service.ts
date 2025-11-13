@@ -41,7 +41,8 @@ export async function searchNDCsByRxCUI(rxcui: string): Promise<NDCPackage[]> {
 	try {
 		const result = await retryWithBackoff(
 			async () => {
-				const url = `${BASE_URL}?search=rxcui:${sanitized}&limit=100`;
+				// Use openfda.rxcui field for RxCUI search (FDA API structure)
+				const url = `${BASE_URL}?search=openfda.rxcui:${sanitized}&limit=100`;
 				const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
 					timeout: API_TIMEOUTS.FDA_NDC
 				});

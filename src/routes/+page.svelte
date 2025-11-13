@@ -53,7 +53,7 @@
 	<div class="container">
 		<header>
 			<h1>SmartScrip 🧠💊</h1>
-			<p>AI-powered prescription fulfillment optimization</p>
+			<p>AI-powered prescription finder</p>
 		</header>
 
 		<div class="content">

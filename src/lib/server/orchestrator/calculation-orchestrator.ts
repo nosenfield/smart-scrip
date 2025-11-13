@@ -102,7 +102,17 @@ export async function processCalculation(
 		// Try RxCUI search first (if we have one), fallback to generic name if no results
 		let availableNDCs: NDCPackage[] = [];
 		if (rxcui) {
-			availableNDCs = await fdaNdcService.searchNDCsByRxCUI(rxcui);
+			try {
+				availableNDCs = await fdaNdcService.searchNDCsByRxCUI(rxcui);
+			} catch (error) {
+				// FDA API doesn't support RxCUI search - this is expected
+				// Log and continue to fallback search
+				logger.info('RxCUI search failed (FDA API limitation), using fallback', {
+					rxcui,
+					error: error instanceof Error ? error.message : 'Unknown error'
+				});
+				availableNDCs = [];
+			}
 		}
 
 		// If RxCUI search returns no results, try generic name search as fallback
