@@ -1,6 +1,6 @@
 # Progress Tracker: smart-scrip
 
-**Last Updated**: 2025-11-12 (Phase 4 Complete)
+**Last Updated**: 2025-11-12 (Phase 5 In Progress)
 
 ## Completion Status
 
@@ -96,13 +96,19 @@
 ## What's Next
 
 ### Priority 1 (Immediate - Next Session)
-- [ ] Begin Phase 5: Testing & Quality Assurance (Task 5.1)
+- [ ] Continue Phase 5: Testing & Quality Assurance
+  - Task 5.1: Complete Unit Test Coverage (9 OpenAI tests failing - known issue)
+  - Task 5.3: Create Test Data Fixtures
+  - Task 5.4: Implement API Mocking for Tests
+  - Task 5.6: Performance Testing
+  - Task 5.7: Accessibility Testing
+  - Task 5.8: Create Test Documentation
 
 ### Priority 2 (This Week)
 - [ ] Complete Phase 5: Testing & Quality Assurance
+- [ ] Begin Phase 6: Deployment (GCP setup ready)
 
 ### Priority 3 (Next Phase)
-- [ ] Phase 5: Testing & Quality Assurance
 - [ ] Phase 6: Deployment & DevOps
 
 ---
@@ -114,6 +120,8 @@ None currently.
 
 ### Non-Blocking
 - **Docker adapter mismatch**: Using adapter-auto instead of adapter-node. Works for development, needs migration for production Cloud Run deployment in Phase 6. Image size 376MB (target <200MB). [Documented in _docs/task-tracker.md]
+- **OpenAI unit tests failing**: 9 tests failing due to mock setup issues with singleton pattern. Known issue, non-blocking (integration tests pass, functional verification complete).
+- **Playwright E2E tests deferred**: Task 5.2 blocked by code review concerns. Decision: Defer to post-MVP, use manual testing for MVP validation.
 
 ---
 
@@ -178,6 +186,15 @@ None currently - fresh project.
 - Responsive design implemented
 - SEO metadata included
 
+**Phase 5 Achievements (In Progress):**
+- 1 task complete (5.5 - Code Quality and Linting)
+- ESLint v9 migration: Migrated from legacy .eslintrc.cjs to flat config format
+- All linting errors fixed: 18 → 0 errors, 0 warnings
+- ESLint dependencies added: globals, @eslint/js, @eslint/eslintrc
+- Code quality improvements: unused variable fixes, type assertion improvements, Svelte each keys added
+- GCP infrastructure setup complete: Project `smart-scrip-dev` created, all APIs enabled, Secret Manager configured
+- Test status: 315 passing, 9 failing (known issue), 13 skipped, 1 todo
+
 **Key Decisions Made:**
 1. Use $env/static/private instead of $env/dynamic/private (security)
 2. Keep adapter-auto for now, migrate to adapter-node in Phase 6
@@ -190,6 +207,9 @@ None currently - fresh project.
 9. AI-selected NDCs override deterministic matches when available
 10. X-Forwarded-For header handling for production Cloud Run deployment
 11. In-memory rate limiting acceptable for MVP, Redis required for production
+12. ESLint v9 flat config format for long-term compatibility
+13. Use `_` prefix pattern for intentionally unused variables
+14. Defer Playwright E2E testing to post-MVP (manual testing sufficient for MVP)
 
 **Next Session Focus:**
-Begin Phase 5: Testing & Quality Assurance (Task 5.1 - Complete Unit Test Coverage)
+Continue Phase 5: Testing & Quality Assurance (Tasks 5.3, 5.4, 5.6, 5.7, 5.8 remaining)
