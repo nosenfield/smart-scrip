@@ -224,7 +224,9 @@ function parseNDCPackages(results: FDANDCAPIResponse['results']): NDCPackage[] {
 	const packages: NDCPackage[] = [];
 
 	for (const result of results) {
-		const status = result.marketing_status?.toLowerCase().includes('active')
+		// Treat null/undefined marketing_status as 'active' (FDA API often omits this field)
+		// Only mark as 'inactive' if explicitly set to a non-active value
+		const status = result.marketing_status == null || result.marketing_status?.toLowerCase().includes('active')
 			? 'active'
 			: 'inactive';
 
