@@ -1,0 +1,15 @@
+.git
+.gitignore
+node_modules
+.svelte-kit
+.env
+.env.*
+!.env.example
+tests
+_docs
+.prettierrc
+eslint.config.js
+vitest.config.ts
+playwright.config.ts
+README.md
+

@@ -1,0 +1,42 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ndc-calculator
+  labels:
+    cloud.googleapis.com/location: us-central1
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '100'
+        autoscaling.knative.dev/target: '80'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - image: gcr.io/PROJECT_ID/ndc-calculator:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-api-key
+                  key: latest
+            - name: OPENAI_MODEL
+              value: gpt-4o-mini
+            - name: RXNORM_API_BASE_URL
+              value: https://rxnav.nlm.nih.gov/REST
+            - name: FDA_NDC_API_BASE_URL
+              value: https://api.fda.gov/drug/ndc.json
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+  traffic:
+    - percent: 100
+      latestRevision: true
+
