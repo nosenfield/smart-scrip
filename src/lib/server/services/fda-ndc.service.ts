@@ -99,8 +99,9 @@ export async function searchNDCsByGenericName(genericName: string): Promise<NDCP
 	try {
 		const result = await retryWithBackoff(
 			async () => {
-				// Extract base generic name (remove dosage info like "10mg")
-				const baseName = sanitized.split(/\s+\d+mg/i)[0].trim();
+				// Extract base generic name (remove dosage info like "10mg" or "10 MG")
+				// Match patterns like "10mg", "10 MG", "10mg/ml", etc.
+				const baseName = sanitized.split(/\s+\d+\s*(mg|ml|g|mcg|iu|unit)/i)[0].trim();
 				const url = `${BASE_URL}?search=generic_name:"${baseName}"&limit=100`;
 				const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
 					timeout: API_TIMEOUTS.FDA_NDC
