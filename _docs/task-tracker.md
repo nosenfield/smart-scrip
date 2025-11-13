@@ -19,7 +19,7 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Progress Summary
 
-**Overall:** 45/77 tasks complete (58.4%)
+**Overall:** 46/77 tasks complete (59.7%)
 
 **Note:** Phase 5 Task 5.2 (Playwright E2E) is blocked - see Known Issues section.
 
@@ -136,14 +136,14 @@ Progress tracker for NDC Packaging & Quantity Calculator MVP. Reference: [task-l
 
 ## Phase 6: Deployment & DevOps
 
-**Progress:** 5/9 (55.6%)
+**Progress:** 6/9 (66.7%)
 
 - [x] 6.1 - Configure SvelteKit for Cloud Run
 - [x] 6.2 - Create Cloud Run Configuration
 - [x] 6.3 - Setup Google Cloud Secret Manager
 - [x] 6.4 - Create Deployment Script
 - [x] 6.5 - Setup CI/CD with GitHub Actions
-- [ ] 6.6 - Configure Cloud Logging
+- [x] 6.6 - Configure Cloud Logging
 - [ ] 6.7 - Setup Monitoring and Alerting
 - [ ] 6.8 - Create Deployment Documentation
 - [ ] 6.9 - Production Readiness Checklist
