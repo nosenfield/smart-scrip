@@ -5,7 +5,7 @@
  * and return formatted calculation responses.
  */
 
-import type { CalculationRequest, CalculationResponse, Warning } from '$lib/types';
+import type { CalculationRequest, CalculationResponse, Warning, NDCPackage } from '$lib/types';
 import * as openaiService from '$lib/server/services/openai.service';
 import * as rxnormService from '$lib/server/services/rxnorm.service';
 import type { DrugInfo } from '$lib/server/services/rxnorm.service';
@@ -63,21 +63,34 @@ export async function processCalculation(
 			normalizedDrug = await rxnormService.normalizeToRxCUI(request.drugName);
 			rxcui = normalizedDrug.rxcui;
 		} else if (request.ndc) {
-			// If NDC provided, validate it directly
-			const validated = await fdaNdcService.validateNDC(request.ndc);
-			if (!validated) {
-				return {
-					success: false,
-					error: 'Invalid or inactive NDC provided',
-					code: 'VALIDATION_ERROR'
-				};
+			// If NDC provided, try to get RxCUI from RxNorm API first (standardized lookup)
+			const ndcRxCUI = await rxnormService.getRxCUIFromNDC(request.ndc);
+			if (ndcRxCUI) {
+				// RxCUI found - use it for standardized lookup (preferred method)
+				rxcui = ndcRxCUI;
+				logger.info('RxCUI found for NDC, using standardized lookup', { ndc: request.ndc, rxcui });
+			} else {
+				// No RxCUI found - validate NDC with FDA and extract generic name
+				logger.info('No RxCUI found for NDC, validating with FDA', { ndc: request.ndc });
+				const validated = await fdaNdcService.validateNDC(request.ndc);
+				if (!validated) {
+					return {
+						success: false,
+						error: 'Invalid or inactive NDC provided',
+						code: 'VALIDATION_ERROR'
+					};
+				}
+				// Extract generic name from validated NDC for fallback search
+				const genericName = validated.genericName;
+				if (genericName) {
+					// Store generic name for fallback search (will be used if RxCUI search fails)
+					normalizedDrug = { rxcui: '', name: genericName, synonym: undefined, tty: undefined };
+					logger.info('Extracted generic name from validated NDC', { ndc: request.ndc, genericName });
+				}
+				// Set empty RxCUI - FDA search will fail, but we'll fall back to generic name search
+				rxcui = '';
+				logger.warn('No RxCUI mapping found for NDC, will fallback to generic name search', { ndc: request.ndc });
 			}
-			// NOTE: Using NDC as RxCUI is a limitation of the current implementation.
-			// The FDA API searchNDCsByRxCUI may accept NDC format, but ideally we would
-			// extract RxCUI from the validated NDC package or use a different search method.
-			// For MVP, this allows NDC-only workflows to proceed, but may need enhancement
-			// for production use cases that require proper RxCUI resolution.
-			rxcui = request.ndc;
 		} else {
 			throw new ValidationError('Either drugName or ndc must be provided');
 		}
@@ -86,7 +99,28 @@ export async function processCalculation(
 		const quantityResult = calculateTotalQuantity(parsedSIG, request.daysSupply);
 
 		// Step 5: Retrieve available NDCs from FDA
-		const availableNDCs = await fdaNdcService.searchNDCsByRxCUI(rxcui);
+		// Try RxCUI search first (if we have one), fallback to generic name if no results
+		let availableNDCs: NDCPackage[] = [];
+		if (rxcui) {
+			availableNDCs = await fdaNdcService.searchNDCsByRxCUI(rxcui);
+		}
+
+		// If RxCUI search returns no results, try generic name search as fallback
+		if (availableNDCs.length === 0 && normalizedDrug?.name) {
+			logger.info('RxCUI search returned no results, trying generic name search', {
+				rxcui,
+				genericName: normalizedDrug.name
+			});
+			availableNDCs = await fdaNdcService.searchNDCsByGenericName(normalizedDrug.name);
+		}
+
+		// If still no results and we have a drug name, try that as well
+		if (availableNDCs.length === 0 && request.drugName) {
+			logger.info('Generic name search returned no results, trying original drug name', {
+				drugName: request.drugName
+			});
+			availableNDCs = await fdaNdcService.searchNDCsByGenericName(request.drugName);
+		}
 
 		if (availableNDCs.length === 0) {
 			return {

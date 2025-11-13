@@ -28,6 +28,18 @@ export interface DrugInfo {
 /**
  * Normalizes a drug name to RxCUI (RxNorm Concept Unique Identifier)
  * 
+ * **Current Approach:**
+ * 1. Tries exact match using `/rxcui.json?name=` endpoint
+ * 2. Falls back to approximate match using `/approximateTerm.json?term=` endpoint
+ * 3. Fetches properties using `/rxcui/{rxcui}/properties.json`
+ * 
+ * **Alternative Endpoint (not currently used):**
+ * - `/drugs.json?name=` - Returns multiple related drug products
+ *   - Better for ingredient/brand name searches (e.g., "Metformin")
+ *   - Less effective for specific dosage forms (e.g., "Lisinopril 10mg tablet")
+ *   - Returns multiple matches that would require selection logic
+ *   - See: https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getDrugs.html
+ * 
  * @param drugName - The drug name to normalize (e.g., "aspirin", "ibuprofen 200mg")
  * @returns Drug information including RxCUI, name, and optional synonym/type
  * @throws ValidationError if drug name is invalid
@@ -56,12 +68,29 @@ export async function normalizeToRxCUI(drugName: string): Promise<DrugInfo> {
 	try {
 		const rxcui = await retryWithBackoff(
 			async () => {
-				const url = `${BASE_URL}/rxcui.json?name=${encodeURIComponent(sanitized)}`;
-				const response = await apiClient.fetch<RxNormAPIResponse>(url, {
+				// First try exact match
+				const exactUrl = `${BASE_URL}/rxcui.json?name=${encodeURIComponent(sanitized)}`;
+				const exactResponse = await apiClient.fetch<RxNormAPIResponse>(exactUrl, {
 					timeout: API_TIMEOUTS.RXNORM
 				});
 
-				const rxcuiId = response.idGroup?.rxnormId?.[0];
+				let rxcuiId = exactResponse.idGroup?.rxnormId?.[0];
+				
+				// If exact match fails, try approximate match
+				if (!rxcuiId) {
+					logger.info('Exact match failed, trying approximate match', { drugName: sanitized });
+					const approxUrl = `${BASE_URL}/approximateTerm.json?term=${encodeURIComponent(sanitized)}&maxEntries=1`;
+					const approxResponse = await apiClient.fetch<{
+						approximateGroup?: {
+							candidate?: Array<{ rxcui: string }>;
+						};
+					}>(approxUrl, {
+						timeout: API_TIMEOUTS.RXNORM
+					});
+
+					rxcuiId = approxResponse.approximateGroup?.candidate?.[0]?.rxcui;
+				}
+
 				if (!rxcuiId) {
 					throw new Error(`No RxCUI found for drug: ${sanitized}`);
 				}
@@ -88,6 +117,88 @@ export async function normalizeToRxCUI(drugName: string): Promise<DrugInfo> {
 			throw error;
 		}
 		throw new ExternalAPIError('Failed to normalize drug name with RxNorm');
+	}
+}
+
+/**
+ * Gets RxCUI from an NDC code
+ * 
+ * **NDC Format Notes:**
+ * - RxNorm accepts NDCs WITH dashes for lookup (e.g., "65862-045-00")
+ * - RxNorm does NOT accept NDCs without dashes (e.g., "6586204500" returns null)
+ * - RxNorm's `getNDCs` API returns NDCs WITHOUT dashes (CMS 11-digit format)
+ * - FDA API uses dashes, which matches our input format
+ * 
+ * @param ndc - The NDC code (e.g., "12345-678-90")
+ * @returns RxCUI string if found, null if not found
+ * @throws ValidationError if ndc is invalid
+ * @throws ExternalAPIError if API call fails
+ * 
+ * @example
+ * ```typescript
+ * const rxcui = await getRxCUIFromNDC("12345-678-90");
+ * // Returns: "314076" or null
+ * ```
+ * 
+ * @see https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getNDCs.html
+ */
+export async function getRxCUIFromNDC(ndc: string): Promise<string | null> {
+	// Validate input
+	if (!ndc || typeof ndc !== 'string') {
+		throw new ValidationError('NDC is required');
+	}
+
+	const sanitized = ndc.trim();
+	logger.info('Getting RxCUI from NDC', { ndc: sanitized });
+
+	try {
+		const rxcui = await retryWithBackoff(
+			async () => {
+				// RxNorm API endpoint for NDC to RxCUI conversion
+				// Note: RxNorm accepts NDCs WITH dashes (e.g., "65862-045-00")
+				// but returns NDCs WITHOUT dashes from getNDCs API
+				// Try full NDC first (package NDC format: XXXXX-XXXX-XX)
+				let url = `${BASE_URL}/rxcui.json?idtype=NDC&id=${encodeURIComponent(sanitized)}`;
+				let response = await apiClient.fetch<RxNormAPIResponse>(url, {
+					timeout: API_TIMEOUTS.RXNORM
+				});
+
+				let rxcuiId = response.idGroup?.rxnormId?.[0];
+
+				// If full NDC doesn't work, try product NDC (without package code)
+				// NDC format: XXXXX-XXXX-XX, product NDC is XXXXX-XXXX
+				if (!rxcuiId && sanitized.includes('-')) {
+					const parts = sanitized.split('-');
+					if (parts.length === 3) {
+						const productNDC = `${parts[0]}-${parts[1]}`;
+						logger.info('Trying product NDC format', { productNDC, originalNDC: sanitized });
+						url = `${BASE_URL}/rxcui.json?idtype=NDC&id=${encodeURIComponent(productNDC)}`;
+						response = await apiClient.fetch<RxNormAPIResponse>(url, {
+							timeout: API_TIMEOUTS.RXNORM
+						});
+						rxcuiId = response.idGroup?.rxnormId?.[0];
+					}
+				}
+
+				return rxcuiId || null;
+			},
+			{ maxRetries: 3 }
+		);
+
+		if (rxcui) {
+			logger.info('RxCUI found for NDC', { ndc: sanitized, rxcui });
+		} else {
+			logger.warn('No RxCUI found for NDC', { ndc: sanitized });
+		}
+
+		return rxcui;
+	} catch (error) {
+		logger.error('Failed to get RxCUI from NDC', { error, ndc: sanitized });
+		if (error instanceof ValidationError) {
+			throw error;
+		}
+		// Return null instead of throwing - NDC might not have RxCUI mapping
+		return null;
 	}
 }
 

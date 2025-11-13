@@ -73,20 +73,79 @@ export async function searchNDCsByRxCUI(rxcui: string): Promise<NDCPackage[]> {
 }
 
 /**
+ * Searches for NDC packages by generic name
+ * 
+ * @param genericName - The generic drug name to search for (e.g., "Lisinopril")
+ * @returns Array of NDC packages matching the generic name
+ * @throws ValidationError if genericName is invalid
+ * @throws ExternalAPIError if API call fails
+ * 
+ * @example
+ * ```typescript
+ * const packages = await searchNDCsByGenericName("Lisinopril");
+ * // Returns: [{ ndc: "12345-678-90", packageSize: 100, packageUnit: "tablet", status: "active", ... }]
+ * ```
+ */
+export async function searchNDCsByGenericName(genericName: string): Promise<NDCPackage[]> {
+	// Validate input
+	if (!genericName || typeof genericName !== 'string' || genericName.trim().length === 0) {
+		throw new ValidationError('Generic name is required');
+	}
+
+	const sanitized = genericName.trim();
+	logger.info('Searching NDCs by generic name', { genericName: sanitized });
+
+	try {
+		const result = await retryWithBackoff(
+			async () => {
+				// Extract base generic name (remove dosage info like "10mg")
+				const baseName = sanitized.split(/\s+\d+mg/i)[0].trim();
+				const url = `${BASE_URL}?search=generic_name:"${baseName}"&limit=100`;
+				const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
+					timeout: API_TIMEOUTS.FDA_NDC
+				});
+
+				if (!response.results || response.results.length === 0) {
+					return [];
+				}
+
+				return parseNDCPackages(response.results);
+			},
+			{
+				maxRetries: 3,
+				shouldRetry: (error) => {
+					// Don't retry if no results found (not an error condition)
+					return !(error instanceof Error && error.message.includes('No results'));
+				}
+			}
+		);
+
+		logger.info('NDCs found by generic name', { genericName: sanitized, count: result.length });
+		return result;
+	} catch (error) {
+		logger.error('Failed to search NDCs by generic name', { error, genericName: sanitized });
+		if (error instanceof ValidationError) {
+			throw error;
+		}
+		throw new ExternalAPIError('Failed to retrieve NDC data from FDA');
+	}
+}
+
+/**
  * Validates an NDC code and returns package information if found
  * 
  * @param ndc - The NDC code to validate (e.g., "12345-678-90")
- * @returns NDCPackage if found, null if not found
+ * @returns Object with package and generic name if found, null if not found
  * @throws ValidationError if ndc is invalid
  * @throws ExternalAPIError if API call fails
  * 
  * @example
  * ```typescript
- * const package = await validateNDC("12345-678-90");
- * // Returns: { ndc: "12345-678-90", packageSize: 100, packageUnit: "tablet", status: "active", ... } or null
+ * const result = await validateNDC("12345-678-90");
+ * // Returns: { package: { ndc: "12345-678-90", ... }, genericName: "Lisinopril" } or null
  * ```
  */
-export async function validateNDC(ndc: string): Promise<NDCPackage | null> {
+export async function validateNDC(ndc: string): Promise<{ package: NDCPackage; genericName: string } | null> {
 	// Validate input
 	if (!ndc || typeof ndc !== 'string' || ndc.trim().length === 0) {
 		throw new ValidationError('NDC is required');
@@ -96,17 +155,53 @@ export async function validateNDC(ndc: string): Promise<NDCPackage | null> {
 	logger.info('Validating NDC', { ndc: sanitized });
 
 	try {
-		const url = `${BASE_URL}?search=product_ndc:"${sanitized}"&limit=1`;
-		const response = await apiClient.fetch<FDANDCAPIResponse>(url, {
-			timeout: API_TIMEOUTS.FDA_NDC
-		});
+		const result = await retryWithBackoff(
+			async () => {
+				// Try package_ndc first (more specific), then product_ndc as fallback
+				let url = `${BASE_URL}?search=package_ndc:"${sanitized}"&limit=1`;
+				let response = await apiClient.fetch<FDANDCAPIResponse>(url, {
+					timeout: API_TIMEOUTS.FDA_NDC
+				});
 
-		if (!response.results || response.results.length === 0) {
-			return null;
-		}
+				// If package_ndc search returns no results, try product_ndc
+				if (!response.results || response.results.length === 0) {
+					logger.info('Package NDC search returned no results, trying product NDC', { ndc: sanitized });
+					url = `${BASE_URL}?search=product_ndc:"${sanitized}"&limit=1`;
+					response = await apiClient.fetch<FDANDCAPIResponse>(url, {
+						timeout: API_TIMEOUTS.FDA_NDC
+					});
+				}
 
-		const packages = parseNDCPackages(response.results);
-		return packages[0] || null;
+				if (!response.results || response.results.length === 0) {
+					return null;
+				}
+
+				const packages = parseNDCPackages(response.results);
+				// Find the exact NDC match in the results
+				const exactMatch = packages.find(pkg => pkg.ndc === sanitized) || packages[0];
+				
+				if (!exactMatch) {
+					return null;
+				}
+
+				// Extract generic name from the first result
+				const genericName = response.results[0]?.generic_name || '';
+				
+				return {
+					package: exactMatch,
+					genericName
+				};
+			},
+			{
+				maxRetries: 3,
+				shouldRetry: (error) => {
+					// Don't retry if no results found (not an error condition)
+					return !(error instanceof Error && error.message.includes('No results'));
+				}
+			}
+		);
+
+		return result;
 	} catch (error) {
 		logger.error('Failed to validate NDC', { error, ndc: sanitized });
 		if (error instanceof ValidationError) {

@@ -7,19 +7,60 @@
 		submit: CalculationRequest;
 	}>();
 
-	let drugName = '';
-	let ndc = '';
+	let useDrugName = false; // false = NDC mode (default), true = Drug Name mode
+	let identifier = ''; // Single field for either NDC or drug name
 	let sig = '';
 	let daysSupply: number | '' = 30;
 	let errors: Record<string, string> = {};
 	let loading = false;
 
+	// Example prescriptions
+	const examples = [
+		{
+			drugName: 'Lisinopril 10mg tablet',
+			ndc: '65862-045-00',
+			sig: 'Take 1 tablet by mouth once daily',
+			daysSupply: 30
+		},
+		{
+			drugName: 'Metformin 500mg tablet',
+			ndc: '00093-1105-01',
+			sig: 'Take 1 tablet by mouth twice daily with meals',
+			daysSupply: 90
+		},
+		{
+			drugName: 'Atorvastatin 20mg tablet',
+			ndc: '65015-810-61',
+			sig: 'Take 1 tablet by mouth once daily at bedtime',
+			daysSupply: 30
+		}
+	];
+
+	function fillExample(example: typeof examples[0]) {
+		// Fill based on current mode
+		if (useDrugName) {
+			identifier = example.drugName;
+		} else {
+			identifier = example.ndc;
+		}
+		sig = example.sig;
+		daysSupply = example.daysSupply;
+		errors = {}; // Clear any errors
+	}
+
+	function toggleInputMode() {
+		useDrugName = !useDrugName;
+		identifier = ''; // Clear field when switching modes
+		errors = {}; // Clear errors
+	}
+
 	function validateForm(): boolean {
 		errors = {};
 
-		if (!drugName && !ndc) {
-			errors.drugName = 'Either drug name or NDC is required';
-			errors.ndc = 'Either drug name or NDC is required';
+		if (!identifier || identifier.trim().length === 0) {
+			errors.identifier = useDrugName
+				? 'Drug name is required'
+				: 'NDC is required';
 		}
 
 		if (!sig || sig.trim().length === 0) {
@@ -45,20 +86,18 @@
 			daysSupply: daysSupply as number
 		};
 
-		if (drugName) {
-			request.drugName = drugName;
-		}
-
-		if (ndc) {
-			request.ndc = ndc;
+		if (useDrugName) {
+			request.drugName = identifier.trim();
+		} else {
+			request.ndc = identifier.trim();
 		}
 
 		dispatch('submit', request);
 	}
 
 	export function resetForm() {
-		drugName = '';
-		ndc = '';
+		useDrugName = false;
+		identifier = '';
 		sig = '';
 		daysSupply = 30;
 		errors = {};
@@ -72,31 +111,75 @@
 
 <form on:submit|preventDefault={handleSubmit} class="prescription-form">
 	<div class="form-header">
-		<h2>Prescription Calculator</h2>
-		<p>Enter prescription details to calculate optimal NDC selection</p>
+		<p class="description">Enter prescription details to calculate optimal NDC selection</p>
+		<p class="examples">
+			Example: 
+			{#each examples as example, index}
+				<button
+					type="button"
+					class="example-link"
+					on:click={() => fillExample(example)}
+					on:keydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							fillExample(example);
+						}
+					}}
+				>
+					{example.drugName}
+				</button>
+			{/each}
+		</p>
 	</div>
 
 	<div class="form-fields">
-		<Input
-			label="Drug Name"
-			name="drugName"
-			bind:value={drugName}
-			placeholder="e.g., Lisinopril 10mg tablet"
-			error={errors.drugName}
-			maxlength={200}
-		/>
-
-		<div class="divider">
-			<span>OR</span>
+		<div class="identifier-field">
+			<div class="identifier-label">
+				{#if useDrugName}
+					<button
+						type="button"
+						class="toggle-link"
+						on:click={toggleInputMode}
+						on:keydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleInputMode();
+							}
+						}}
+						aria-label="Switch to NDC input"
+					>
+						NDC
+					</button>
+					<span class="or-text">or</span>
+					<span>Drug Name</span>
+				{:else}
+					<span>NDC</span>
+					<span class="or-text">or</span>
+					<button
+						type="button"
+						class="toggle-link"
+						on:click={toggleInputMode}
+						on:keydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleInputMode();
+							}
+						}}
+						aria-label="Switch to Drug Name input"
+					>
+						Drug Name
+					</button>
+				{/if}
+			</div>
+			<Input
+				label={useDrugName ? 'Drug Name' : 'NDC'}
+				name={useDrugName ? 'drugName' : 'ndc'}
+				bind:value={identifier}
+				placeholder={useDrugName ? 'e.g., Lisinopril 10mg tablet' : 'e.g., 00071-0304-23'}
+				error={errors.identifier}
+				maxlength={useDrugName ? 200 : undefined}
+			/>
 		</div>
-
-		<Input
-			label="NDC"
-			name="ndc"
-			bind:value={ndc}
-			placeholder="e.g., 00071-0304-23"
-			error={errors.ndc}
-		/>
 
 		<Input
 			label="SIG (Prescription Directions)"
@@ -148,6 +231,47 @@
 	.form-header p {
 		color: #6b7280;
 		font-size: 0.875rem;
+		margin: 0.5rem 0;
+	}
+
+	.description {
+		font-weight: 600;
+		font-size: 1rem;
+	}
+
+	.examples {
+		font-size: 1rem;
+		color: #6b7280;
+	}
+
+	.example-link {
+		background: none;
+		border: none;
+		padding: 0;
+		margin: 0 0.5rem;
+		color: #3b82f6;
+		cursor: pointer;
+		font-size: 0.875rem;
+		text-decoration: underline;
+		transition: color 0.2s;
+	}
+
+	.example-link:first-child {
+		margin-left: 0;
+	}
+
+	.example-link:last-child {
+		margin-right: 0;
+	}
+
+	.example-link:hover {
+		color: #2563eb;
+	}
+
+	.example-link:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	.form-fields {
@@ -156,28 +280,51 @@
 		gap: 1.5rem;
 	}
 
-	.divider {
-		text-align: center;
-		position: relative;
-		margin: 0.5rem 0;
+	.identifier-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
-	.divider::before {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: 0;
-		right: 0;
-		height: 1px;
-		background: #e5e7eb;
-	}
-
-	.divider span {
-		background: white;
-		padding: 0 1rem;
-		color: #9ca3af;
+	.identifier-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-size: 0.875rem;
-		position: relative;
+		font-weight: 500;
+		color: #374151;
+		margin-bottom: 0.5rem;
+	}
+
+	.identifier-label > span {
+		display: block;
+	}
+
+	.or-text {
+		color: #6b7280;
+		font-weight: 400;
+	}
+
+	.toggle-link {
+		background: none;
+		border: none;
+		padding: 0;
+		color: #3b82f6;
+		cursor: pointer;
+		font-size: 0.875rem;
+		font-weight: 500;
+		text-decoration: underline;
+		transition: color 0.2s;
+	}
+
+	.toggle-link:hover {
+		color: #2563eb;
+	}
+
+	.toggle-link:focus {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	.form-actions {

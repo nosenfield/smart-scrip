@@ -501,12 +501,13 @@ describe('Service Integration Tests', () => {
 				const result = await validateNDC('12345-678-90');
 
 				expect(result).not.toBeNull();
-				expect(result).toMatchObject({
+				expect(result?.package).toMatchObject({
 					ndc: '12345-678-90',
 					packageSize: 100,
 					packageUnit: 'tablet',
 					status: 'active'
 				});
+				expect(result?.genericName).toBe('Aspirin');
 			});
 
 			it('should return null for invalid NDC', async () => {

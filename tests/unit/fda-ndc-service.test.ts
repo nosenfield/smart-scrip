@@ -216,8 +216,9 @@ describe('FDA NDC Service', () => {
 			const result = await validateNDC('12345-678-90');
 
 			expect(result).not.toBeNull();
-			expect(result?.ndc).toBe('12345-678-90');
-			expect(result?.packageSize).toBe(100);
+			expect(result?.package.ndc).toBe('12345-678-90');
+			expect(result?.package.packageSize).toBe(100);
+			expect(result?.genericName).toBe('Aspirin');
 			expect(mockFetch).toHaveBeenCalledWith(
 				expect.stringContaining('product_ndc:"12345-678-90"'),
 				expect.any(Object)

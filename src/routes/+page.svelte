@@ -45,14 +45,14 @@
 </script>
 
 <svelte:head>
-	<title>NDC Packaging Calculator</title>
+	<title>SmartScrip</title>
 	<meta name="description" content="Calculate optimal NDC package selection for prescriptions" />
 </svelte:head>
 
 <main>
 	<div class="container">
 		<header>
-			<h1>NDC Packaging & Quantity Calculator</h1>
+			<h1>SmartScrip 🧠💊</h1>
 			<p>AI-powered prescription fulfillment optimization</p>
 		</header>
 
