@@ -166,9 +166,18 @@ export async function validateNDC(ndc: string): Promise<{ package: NDCPackage; g
 				});
 
 				// If package_ndc search returns no results, try product_ndc
+				// Extract product NDC (first two parts: XXXXX-XXXX) from package NDC (XXXXX-XXXX-XX)
 				if (!response.results || response.results.length === 0) {
 					logger.info('Package NDC search returned no results, trying product NDC', { ndc: sanitized });
-					url = `${BASE_URL}?search=product_ndc:"${sanitized}"&limit=1`;
+					let productNDC = sanitized;
+					if (sanitized.includes('-')) {
+						const parts = sanitized.split('-');
+						if (parts.length === 3) {
+							productNDC = `${parts[0]}-${parts[1]}`;
+							logger.info('Extracted product NDC from package NDC', { packageNDC: sanitized, productNDC });
+						}
+					}
+					url = `${BASE_URL}?search=product_ndc:"${productNDC}"&limit=10`;
 					response = await apiClient.fetch<FDANDCAPIResponse>(url, {
 						timeout: API_TIMEOUTS.FDA_NDC
 					});

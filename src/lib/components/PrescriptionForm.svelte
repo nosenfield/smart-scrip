@@ -30,7 +30,7 @@
 		},
 		{
 			drugName: 'Atorvastatin 20mg tablet',
-			ndc: '65015-810-61',
+			ndc: '31722-425-90',
 			sig: 'Take 1 tablet by mouth once daily at bedtime',
 			daysSupply: 30
 		}

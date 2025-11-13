@@ -183,18 +183,36 @@ export async function processCalculation(
 					finalWarnings = [...finalWarnings, ...aiSelection.warnings];
 				}
 
-				// Use AI-selected NDCs if provided, otherwise fall back to deterministic matches
+				// Use AI-selected NDCs if provided, but only if they're reasonable
+				// Check if AI selection has excessive overfill compared to deterministic match
 				if (aiSelection.selectedNDCs && aiSelection.selectedNDCs.length > 0) {
-					// Convert AI selection format to SelectedNDC format
-					finalSelectedNDCs = aiSelection.selectedNDCs.map((ai) => ({
-						ndc: ai.ndc,
-						quantity: ai.totalQuantity,
-						packageCount: ai.packageCount
-					}));
-					logger.info('Using AI-selected NDCs', {
-						count: finalSelectedNDCs.length,
-						rxcui
-					});
+					const aiTotalQuantity = aiSelection.selectedNDCs.reduce((sum, ai) => sum + ai.totalQuantity, 0);
+					const deterministicTotalQuantity = matchResult.matches.reduce((sum, m) => sum + m.quantity, 0);
+					const aiOverfill = aiTotalQuantity - quantityResult.totalQuantity;
+					const deterministicOverfill = deterministicTotalQuantity - quantityResult.totalQuantity;
+					
+					// Only use AI selection if it doesn't have significantly more waste
+					// (Allow up to 20% more overfill than deterministic, or if deterministic has no matches)
+					if (matchResult.matches.length === 0 || aiOverfill <= deterministicOverfill * 1.2) {
+						// Convert AI selection format to SelectedNDC format
+						finalSelectedNDCs = aiSelection.selectedNDCs.map((ai) => ({
+							ndc: ai.ndc,
+							quantity: ai.totalQuantity,
+							packageCount: ai.packageCount
+						}));
+						logger.info('Using AI-selected NDCs', {
+							count: finalSelectedNDCs.length,
+							rxcui,
+							aiOverfill,
+							deterministicOverfill
+						});
+					} else {
+						logger.info('Rejecting AI selection due to excessive overfill', {
+							aiOverfill,
+							deterministicOverfill,
+							rxcui
+						});
+					}
 				}
 			} catch (error) {
 				// Graceful degradation: If AI selection fails, continue with deterministic

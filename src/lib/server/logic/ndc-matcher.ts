@@ -139,7 +139,7 @@ function findClosestMatch(
 	availableNDCs: NDCPackage[],
 	warnings: Warning[]
 ): MatchResult {
-	// Sort by package size
+	// Sort by package size (smallest first)
 	const sorted = [...availableNDCs].sort((a, b) => a.packageSize - b.packageSize);
 
 	// Find smallest package that meets or exceeds requirement
@@ -168,7 +168,8 @@ function findClosestMatch(
 		};
 	}
 
-	// No single package large enough, need multiple
+	// No single package large enough, need multiple packages
+	// Try to find optimal combination that minimizes waste
 	if (requiredQuantity > 0) {
 		warnings.push({
 			type: WARNING_TYPES.MULTIPLE_PACKAGES,
@@ -221,20 +222,21 @@ function findOptimalCombination(
 
 	// Handle any remaining quantity (underfill)
 	if (remainingQuantity > 0) {
-		// Add one more package of smallest size
-		const smallest = sorted[sorted.length - 1];
-		const existingIndex = selected.findIndex((s) => s.ndc === smallest.ndc);
+		// Find smallest package that can cover the remainder (not just the absolute smallest)
+		const sortedAsc = [...availableNDCs].sort((a, b) => a.packageSize - b.packageSize);
+		const bestRemainderPackage = sortedAsc.find((ndc) => ndc.packageSize >= remainingQuantity) || sortedAsc[sortedAsc.length - 1];
+		const existingIndex = selected.findIndex((s) => s.ndc === bestRemainderPackage.ndc);
 
-		const overfill = smallest.packageSize - remainingQuantity;
+		const overfill = bestRemainderPackage.packageSize - remainingQuantity;
 
 		if (existingIndex >= 0) {
 			selected[existingIndex].packageCount += 1;
-			selected[existingIndex].quantity += smallest.packageSize;
+			selected[existingIndex].quantity += bestRemainderPackage.packageSize;
 			selected[existingIndex].overfill = overfill;
 		} else {
 			selected.push({
-				ndc: smallest.ndc,
-				quantity: smallest.packageSize,
+				ndc: bestRemainderPackage.ndc,
+				quantity: bestRemainderPackage.packageSize,
 				packageCount: 1,
 				overfill
 			});
@@ -242,7 +244,7 @@ function findOptimalCombination(
 
 		warnings.push({
 			type: WARNING_TYPES.OVERFILL,
-			message: `Overfill of ${overfill} ${smallest.packageUnit}`,
+			message: `Overfill of ${overfill} ${bestRemainderPackage.packageUnit}`,
 			severity: 'info'
 		});
 	}
