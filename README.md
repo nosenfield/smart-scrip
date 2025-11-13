@@ -1,16 +1,41 @@
-# NDC Packaging & Quantity Calculator
+# SmartScrip 🧠💊
 
-AI-accelerated tool for accurate prescription fulfillment by matching prescriptions with valid National Drug Codes (NDCs) and calculating correct dispense quantities.
+**AI-powered prescription finder** - An intelligent tool for accurate prescription fulfillment by matching prescriptions with valid National Drug Codes (NDCs) and calculating optimal dispense quantities.
+
+**Production URL:** https://ndc-calculator-izsgspdfsa-uc.a.run.app
+
+## Overview
+
+SmartScrip helps pharmacy systems accurately match prescriptions to valid NDCs and determine correct dispense quantities. It addresses common issues like dosage form mismatches, package size errors, and inactive NDCs that lead to claim rejections and operational delays.
 
 ## Tech Stack
 
-- **SvelteKit 2.x** - Full-stack web framework
-- **TypeScript 5.x** - Type-safe development
-- **OpenAI API** - AI-powered SIG parsing and reasoning
-- **RxNorm API** - Drug normalization and RXCUI lookup
+### Frontend
+- **SvelteKit 2.47** - Full-stack web framework
+- **Svelte 5.41** - Component framework
+- **TypeScript 5.9** - Strict mode type safety
+- **Vite 7.1** - Build tool and dev server
+
+### Backend
+- **Node.js 20.x LTS** - Runtime
+- **SvelteKit** - Server-side API routes
+- **@sveltejs/adapter-node** - Production adapter
+
+### Infrastructure
+- **Google Cloud Run** - Serverless hosting
+- **Docker** - Containerization
+- **GitHub Actions** - CI/CD pipeline
+- **Google Cloud Logging** - Structured logging
+
+### External Services
+- **OpenAI API (GPT-4o-mini)** - AI-powered SIG parsing and NDC selection reasoning
+- **RxNorm API** - Drug normalization and RxCUI lookup
 - **FDA NDC Directory API** - NDC package information
-- **Google Cloud Platform** - Cloud Run deployment
-- **Vitest** - Unit testing framework
+
+### Testing & Quality
+- **Vitest 4.0** - Unit and integration testing
+- **ESLint 9.39** - Code linting
+- **Prettier 3.6** - Code formatting
 
 ## Prerequisites
 
@@ -90,13 +115,27 @@ smart-scrip/
 
 ## Key Features
 
+### Product Matching Capabilities
+- **Dual Input Methods**: Accepts drug name or NDC code
+- **Intelligent Search Strategy**: 
+  - RxCUI lookup (preferred, standardized)
+  - Generic name fallback
+  - Original drug name fallback
+- **Smart Package Matching**:
+  - Filters to active NDCs only
+  - Matches by unit (tablet, ml, etc.)
+  - Exact match → closest single package → optimal combination
+  - Minimizes waste while keeping package count low
+- **AI Enhancement**: Refines deterministic matches with reasoning and validates selections
+
+### Core Functionality
 - **AI-Powered SIG Parsing**: Uses OpenAI GPT-4o-mini to parse complex prescription instructions
-- **Drug Normalization**: Leverages RxNorm API for standardized drug identification
+- **Drug Normalization**: Leverages RxNorm API for standardized drug identification (RxCUI)
 - **NDC Matching**: Finds appropriate NDC packages from FDA database
-- **Quantity Calculation**: Automatically calculates dispense quantities with overfill/underfill handling
-- **Type Safety**: Fully typed TypeScript codebase
+- **Quantity Calculation**: Automatically calculates dispense quantities with overfill/underfill warnings
+- **Type Safety**: Fully typed TypeScript codebase with strict mode
 - **Test Coverage**: Comprehensive unit and integration tests
-- **Cloud Ready**: Containerized for deployment on Google Cloud Run
+- **Production Ready**: Deployed on Google Cloud Run with CI/CD
 
 ## API Endpoints
 
@@ -104,11 +143,21 @@ smart-scrip/
 
 Calculate NDC packages and quantities for a prescription.
 
-**Request:**
+**Request (Drug Name):**
 
 ```json
 {
-	"drugName": "Lisinopril 10mg tablets",
+	"drugName": "Lisinopril 10mg tablet",
+	"sig": "Take 1 tablet by mouth once daily",
+	"daysSupply": 30
+}
+```
+
+**Request (NDC):**
+
+```json
+{
+	"ndc": "65862-045-00",
 	"sig": "Take 1 tablet by mouth once daily",
 	"daysSupply": 30
 }
@@ -122,25 +171,27 @@ Calculate NDC packages and quantities for a prescription.
 	"data": {
 		"rxcui": "314076",
 		"normalizedDrug": {
-			"name": "Lisinopril",
-			"strength": "10 mg",
-			"doseForm": "Oral Tablet"
+			"name": "lisinopril 10 MG Oral Tablet",
+			"strength": "1",
+			"doseForm": "tablet"
 		},
 		"parsedSIG": {
 			"dose": 1,
 			"unit": "tablet",
 			"frequency": 1,
-			"route": "oral"
+			"route": "by mouth",
+			"specialInstructions": "once daily"
 		},
 		"selectedNDCs": [
 			{
-				"ndc": "12345-678-90",
+				"ndc": "65862-045-30",
 				"quantity": 30,
 				"packageCount": 1
 			}
 		],
 		"totalQuantity": 30,
-		"warnings": []
+		"warnings": [],
+		"aiReasoning": "The NDC 65862-045-30 provides an exact match..."
 	}
 }
 ```
@@ -151,8 +202,11 @@ See `_docs/` directory for detailed documentation:
 
 - [PRD](_docs/prd.md) - Product Requirements Document
 - [Architecture](_docs/architecture.md) - System architecture and design
-- [Task List](_docs/task-list.md) - Development task breakdown
-- [Best Practices](_docs/best-practices.md) - Coding standards and patterns
+- [Deployment](_docs/deployment.md) - Deployment procedures and scripts
+- [Production Readiness](_docs/production-readiness.md) - Pre-deployment checklist
+- [Cloud Logging](_docs/cloud-logging.md) - Logging configuration
+- [Monitoring](_docs/monitoring.md) - Monitoring and alerting setup
+- [Task Tracker](_docs/task-tracker.md) - Development progress tracking
 
 ## Testing
 
@@ -162,13 +216,56 @@ The project uses Vitest for testing with pattern-based test templates:
 - **Integration Tests**: Test component interactions and API endpoints
 - **Test Patterns**: Reusable test templates for common scenarios
 
-Run tests with coverage:
+Run tests:
 
 ```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
 npm run test:coverage
 ```
 
-## Docker Deployment
+### Testing Scripts
+
+Test random drugs to verify search/matching:
+
+```bash
+# Test 10 random drugs by name
+./scripts/test-random-drugs.sh
+
+# Test 5 NDCs with varying quantities
+./scripts/test-ndc-variations.sh
+
+# Test against custom API URL
+./scripts/test-random-drugs.sh https://your-api-url.com/api/calculate
+```
+
+## Deployment
+
+### Google Cloud Run (Production)
+
+Deploy to Google Cloud Run:
+
+```bash
+# Setup secrets (first time only)
+./scripts/setup-secrets.sh PROJECT_ID YOUR_OPENAI_API_KEY
+
+# Deploy
+./scripts/deploy.sh PROJECT_ID [REGION]
+```
+
+The deployment script will:
+- Build Docker image
+- Push to Google Container Registry
+- Deploy to Cloud Run
+- Configure environment variables and secrets
+- Output service URL
+
+### Docker (Local)
 
 Build and run with Docker:
 
@@ -179,8 +276,15 @@ docker build -t ndc-calculator .
 # Run container
 docker run -p 3000:3000 \
   -e OPENAI_API_KEY=your-key-here \
+  -e RXNORM_API_BASE_URL=https://rxnav.nlm.nih.gov/REST \
+  -e FDA_NDC_API_BASE_URL=https://api.fda.gov/drug/ndc.json \
+  -e OPENAI_MODEL=gpt-4o-mini \
   ndc-calculator
 ```
+
+### CI/CD
+
+Automated deployment via GitHub Actions on push to `main` branch. See `.github/workflows/deploy.yml` for configuration.
 
 ## Environment Variables
 
@@ -191,6 +295,20 @@ docker run -p 3000:3000 \
 | `RXNORM_API_BASE_URL`  | RxNorm API base URL            | `https://rxnav.nlm.nih.gov/REST`    | No       |
 | `FDA_NDC_API_BASE_URL` | FDA NDC Directory API base URL | `https://api.fda.gov/drug/ndc.json` | No       |
 | `PUBLIC_APP_NAME`      | Application display name       | `NDC Packaging Calculator`          | No       |
+
+## Project Status
+
+**Current Phase:** Phase 6 Complete (Deployment & DevOps) ✅
+
+- ✅ Phase 0: Project Setup & Foundation
+- ✅ Phase 1: Core Services & API Integration
+- ✅ Phase 2: Business Logic & Calculations
+- ✅ Phase 3: API Routes & Orchestration
+- ✅ Phase 4: Frontend UI
+- ✅ Phase 6: Deployment & DevOps
+- 🔄 Phase 5: Testing & Quality Assurance (in progress)
+
+See `_docs/task-tracker.md` for detailed progress.
 
 ## Contributing
 
@@ -203,3 +321,7 @@ docker run -p 3000:3000 \
 ## License
 
 Proprietary - All rights reserved
+
+---
+
+**Built with ❤️ for accurate prescription fulfillment**
