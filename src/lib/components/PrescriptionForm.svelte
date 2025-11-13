@@ -24,7 +24,7 @@
 		},
 		{
 			drugName: 'Metformin 500mg tablet',
-			ndc: '00093-1105-01',
+			ndc: '42385-949-01',
 			sig: 'Take 1 tablet by mouth twice daily with meals',
 			daysSupply: 90
 		},

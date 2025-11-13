@@ -56,24 +56,36 @@ export async function processCalculation(
 		logger.info('SIG parsed', { parsedSIG });
 
 		// Step 3: Normalize drug name to RxCUI (if provided)
-		let rxcui: string;
+		let rxcui: string | undefined;
 		let normalizedDrug: DrugInfo | undefined;
 
 		if (request.drugName) {
 			normalizedDrug = await rxnormService.normalizeToRxCUI(request.drugName);
 			rxcui = normalizedDrug.rxcui;
 		} else if (request.ndc) {
-			// If NDC provided, try to get RxCUI from RxNorm API first (standardized lookup)
+			// NDC lookup has three paths:
+			// 1. RxCUI found → use standardized RxCUI lookup (preferred)
+			// 2. No RxCUI but valid NDC → extract generic name for fallback search
+			// 3. Invalid NDC → return error
 			const ndcRxCUI = await rxnormService.getRxCUIFromNDC(request.ndc);
 			if (ndcRxCUI) {
-				// RxCUI found - use it for standardized lookup (preferred method)
+				// Path 1: RxCUI found - use it for standardized lookup (preferred method)
 				rxcui = ndcRxCUI;
-				logger.info('RxCUI found for NDC, using standardized lookup', { ndc: request.ndc, rxcui });
+				// Get drug properties to populate normalizedDrug
+				const properties = await rxnormService.getRxCUIProperties(ndcRxCUI);
+				normalizedDrug = {
+					rxcui: ndcRxCUI,
+					name: properties.name || 'Unknown',
+					synonym: properties.synonym,
+					tty: properties.tty
+				};
+				logger.info('RxCUI found for NDC, using standardized lookup', { ndc: request.ndc, rxcui, drugName: normalizedDrug.name });
 			} else {
-				// No RxCUI found - validate NDC with FDA and extract generic name
+				// Path 2: No RxCUI found - validate NDC with FDA and extract generic name
 				logger.info('No RxCUI found for NDC, validating with FDA', { ndc: request.ndc });
 				const validated = await fdaNdcService.validateNDC(request.ndc);
 				if (!validated) {
+					// Path 3: Invalid NDC
 					return {
 						success: false,
 						error: 'Invalid or inactive NDC provided',
@@ -84,11 +96,13 @@ export async function processCalculation(
 				const genericName = validated.genericName;
 				if (genericName) {
 					// Store generic name for fallback search (will be used if RxCUI search fails)
+					// Note: rxcui remains undefined to indicate no RxCUI available
 					normalizedDrug = { rxcui: '', name: genericName, synonym: undefined, tty: undefined };
 					logger.info('Extracted generic name from validated NDC', { ndc: request.ndc, genericName });
 				}
-				// Set empty RxCUI - FDA search will fail, but we'll fall back to generic name search
-				rxcui = '';
+				// rxcui remains undefined - downstream code checks `if (rxcui)` before using it
+				// This ensures we skip RxCUI-based FDA search and go straight to generic name fallback
+				rxcui = undefined;
 				logger.warn('No RxCUI mapping found for NDC, will fallback to generic name search', { ndc: request.ndc });
 			}
 		} else {
@@ -201,7 +215,7 @@ export async function processCalculation(
 		return {
 			success: true,
 			data: {
-				rxcui,
+				rxcui: rxcui || '',
 				normalizedDrug: {
 					name: normalizedDrug?.name || 'Unknown',
 					strength: parsedSIG.dose.toString(),
