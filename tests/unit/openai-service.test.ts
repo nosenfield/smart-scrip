@@ -45,7 +45,7 @@ vi.mock('$lib/server/utils/retry', () => ({
 }));
 
 // Import after mocks are set up
-import { parseSIG, selectOptimalNDC, resetOpenAIClient, type NDCSelectionInput } from '$lib/server/services/openai.service';
+import { parseSIG, selectOptimalNDC, type NDCSelectionInput } from '$lib/server/services/openai.service';
 import openaiModule from 'openai';
 
 // Helper to get OpenAI mock - create fresh instance to get mock reference
@@ -175,17 +175,17 @@ describe('parseSIG', () => {
 	});
 
 	it('should throw ValidationError for null SIG text', async () => {
-		await expect(parseSIG(null as any)).rejects.toThrow(ValidationError);
+		await expect(parseSIG(null as unknown as string)).rejects.toThrow(ValidationError);
 	});
 
 	it('should throw ValidationError for undefined SIG text', async () => {
-		await expect(parseSIG(undefined as any)).rejects.toThrow(ValidationError);
+		await expect(parseSIG(undefined as unknown as string)).rejects.toThrow(ValidationError);
 	});
 
 	it('should throw ValidationError for non-string SIG text', async () => {
-		await expect(parseSIG(123 as any)).rejects.toThrow(ValidationError);
-		await expect(parseSIG({} as any)).rejects.toThrow(ValidationError);
-		await expect(parseSIG([] as any)).rejects.toThrow(ValidationError);
+		await expect(parseSIG(123 as unknown as string)).rejects.toThrow(ValidationError);
+		await expect(parseSIG({} as unknown as string)).rejects.toThrow(ValidationError);
+		await expect(parseSIG([] as unknown as string)).rejects.toThrow(ValidationError);
 	});
 
 	it('should sanitize injection characters from SIG text', async () => {

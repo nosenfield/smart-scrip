@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../../src/routes/api/calculate/+server';
 import type { RequestEvent } from '@sveltejs/kit';
 import { processCalculation } from '$lib/server/orchestrator/calculation-orchestrator';
-import { ValidationError, ExternalAPIError } from '$lib/server/utils/error-handler';
+// ValidationError and ExternalAPIError imported for type checking but not used in assertions
 
 // Mock dependencies
 vi.mock('$lib/server/orchestrator/calculation-orchestrator');
@@ -191,7 +191,7 @@ describe('POST /api/calculate', () => {
 		const eventWithSpy = {
 			...mockEvent,
 			setHeaders: setHeadersSpy
-		} as unknown as RequestEvent;
+		} as unknown as RequestEvent<Record<string, never>, '/api/calculate'>;
 
 		await POST(eventWithSpy);
 
@@ -234,7 +234,7 @@ describe('POST /api/calculate', () => {
 		const eventWithSpy = {
 			...mockEvent,
 			setHeaders: setHeadersSpy
-		} as unknown as RequestEvent;
+		} as unknown as RequestEvent<Record<string, never>, '/api/calculate'>;
 
 		await POST(eventWithSpy);
 

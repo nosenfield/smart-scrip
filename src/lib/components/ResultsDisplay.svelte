@@ -41,7 +41,7 @@
 			<div class="warnings-section">
 				<h3>Warnings</h3>
 				<div class="warnings-list">
-					{#each result.data.warnings as warning}
+					{#each result.data.warnings as warning (warning.type + warning.message)}
 						<WarningBadge {warning} />
 					{/each}
 				</div>
@@ -51,7 +51,7 @@
 		<div class="ndcs-section">
 			<h3>Selected NDCs</h3>
 			<div class="ndcs-grid">
-				{#each result.data.selectedNDCs as ndc}
+				{#each result.data.selectedNDCs as ndc (ndc.ndc)}
 					<NDCCard {ndc} />
 				{/each}
 			</div>

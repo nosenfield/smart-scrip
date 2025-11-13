@@ -3,11 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import {
-	optimizePackageSelection,
-	type OptimizationCriteria,
-	type OptimizationResult
-} from '$lib/server/logic/package-optimizer';
+import { optimizePackageSelection } from '$lib/server/logic/package-optimizer';
 import type { NDCPackage } from '$lib/types';
 
 // Mock logger

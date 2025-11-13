@@ -25,7 +25,7 @@ export interface RetryOptions {
 	 * @param error - The error that occurred
 	 * @returns true if retry should be attempted, false otherwise
 	 */
-	shouldRetry?: (error: Error) => boolean;
+	shouldRetry?: (_error: Error) => boolean;
 }
 
 /**

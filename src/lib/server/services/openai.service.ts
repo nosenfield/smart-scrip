@@ -214,7 +214,7 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanations)
 				let parsed: unknown;
 				try {
 					parsed = JSON.parse(content);
-				} catch (parseError) {
+				} catch (_parseError) {
 					throw new Error('Invalid JSON response from OpenAI');
 				}
 
@@ -352,7 +352,7 @@ Return ONLY valid JSON matching this schema:
 				let parsed: unknown;
 				try {
 					parsed = JSON.parse(content);
-				} catch (parseError) {
+				} catch (_parseError) {
 					throw new Error('Invalid JSON response from OpenAI');
 				}
 

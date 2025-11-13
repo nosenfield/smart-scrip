@@ -58,7 +58,7 @@ export function optimizePackageSelection(
 	const {
 		minimizePackages = true,
 		minimizeWaste = true,
-		allowOverfill = true,
+		allowOverfill: _allowOverfill = true,
 		maxOverfillPercent = 20
 	} = criteria;
 

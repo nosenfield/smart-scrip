@@ -56,7 +56,7 @@ describe('Async Operations', () => {
   describe('Callback-based operations', () => {
     it('should handle callback success', (done: () => void) => {
       // Arrange
-      const callbackFunction = (callback: (error: Error | null, result: string) => void) => {
+      const callbackFunction = (callback: (_error: Error | null, _result: string) => void) => {
         setTimeout(() => callback(null, 'result'), 100);
       };
 

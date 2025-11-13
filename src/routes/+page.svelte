@@ -31,7 +31,7 @@
 			} else {
 				result = await response.json();
 			}
-		} catch (error) {
+		} catch {
 			result = {
 				success: false,
 				error: 'Network error. Please check your connection and try again.',
